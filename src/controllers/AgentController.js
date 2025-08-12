@@ -45,7 +45,6 @@ class AgentController {
     });
   });
   
-  // Get session status and progress
   getSessionStatus = asyncHandler(async (req, res) => {
     const { sessionId } = req.params;
     
@@ -57,7 +56,6 @@ class AgentController {
     });
   });
   
-  // List all sessions
   listSessions = asyncHandler(async (req, res) => {
     const { 
       status, 

@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import morgan from 'morgan';
+import session from 'express-session';
 import path from 'path';
 import fs from 'fs';
 
@@ -38,6 +39,18 @@ class Application {
   }
   
   setupMiddleware() {
+    // Session middleware for OAuth2
+    this.app.use(session({
+      secret: config.external.microsoft.clientSecret || 'your-session-secret',
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        secure: config.env === 'production',
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+      }
+    }));
+    
     // Security middleware
     this.app.use(helmet({
       contentSecurityPolicy: {
