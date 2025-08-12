@@ -25,6 +25,10 @@ const configSchema = Joi.object({
   GOOGLE_SEARCH_API_KEY: Joi.string().optional(),
   GOOGLE_SEARCH_ENGINE_ID: Joi.string().optional(),
   
+  // Microsoft Teams/Graph
+  MICROSOFT_CLIENT_ID: Joi.string().optional(),
+  MICROSOFT_CLIENT_SECRET: Joi.string().optional(),
+  MICROSOFT_TENANT_ID: Joi.string().optional(),
   
   // Notion
   NOTION_TOKEN: Joi.string().optional(),
@@ -80,6 +84,12 @@ const config = {
     notion: {
       token: envVars.NOTION_TOKEN,
       rootPageId: envVars.NOTION_ROOT_PAGE_ID
+    },
+    microsoft: {
+      clientId: envVars.MICROSOFT_CLIENT_ID,
+      clientSecret: envVars.MICROSOFT_CLIENT_SECRET,
+      tenantId: envVars.MICROSOFT_TENANT_ID,
+      redirectUri: envVars.MICROSOFT_REDIRECT_URI || 'http://localhost:3002/api/auth/callback'
     }
   },
   

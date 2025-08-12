@@ -4,6 +4,8 @@ import path from 'path';
 import DocumentController from '../controllers/DocumentController.js';
 import AgentController from '../controllers/AgentController.js';
 import YouTubeController from '../controllers/YouTubeController.js';
+import TeamsController from '../controllers/TeamsController.js';
+import AuthController from '../controllers/AuthController.js';
 import { 
   validateDocumentUpload,
   validateSearch,
@@ -201,6 +203,22 @@ router.post('/youtube/demo',
   YouTubeController.runYouTubeDemo
 );
 
+// Teams Integration - Only what you need
+router.get('/teams/today', 
+  TeamsController.getTodaysMeetings
+);
+
+router.get('/auth/login',
+  AuthController.login
+);
+
+router.get('/auth/callback',
+  AuthController.callback
+);
+
+router.get('/auth/logout',
+  AuthController.logout
+);
 
 // API documentation endpoint
 router.get('/docs', (req, res) => {
@@ -246,6 +264,12 @@ router.get('/docs', (req, res) => {
           'POST /api/youtube/workflow/analyze': 'Execute YouTube analysis workflow',
           'POST /api/youtube/workflow/research': 'Execute YouTube research workflow',
           'POST /api/youtube/demo': 'Run YouTube demo (body: scenario)'
+        },
+        teams: {
+          'GET /api/teams/today': 'Get today\'s meetings for authenticated user',
+          'GET /api/auth/login': 'Login with Microsoft account',
+          'GET /api/auth/callback': 'OAuth callback (automatic)',
+          'GET /api/auth/logout': 'Logout and clear session'
         },
         general: {
           'GET /api/health': 'Service health check',
