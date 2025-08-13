@@ -6,6 +6,7 @@ import AgentController from '../controllers/AgentController.js';
 import YouTubeController from '../controllers/YouTubeController.js';
 import TeamsController from '../controllers/TeamsController.js';
 import AuthController from '../controllers/AuthController.js';
+import EmotionController from '../controllers/EmotionController.js';
 import { 
   validateDocumentUpload,
   validateSearch,
@@ -47,6 +48,30 @@ const upload = multer({
       cb(null, true);
     } else {
       cb(new Error('Invalid file type. Allowed: TXT, MD, PDF, JSON, CSV'));
+    }
+  }
+});
+
+// Separate upload config for images
+const imageUpload = multer({
+  storage: multer.memoryStorage(), // Store in memory for emotion analysis
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB
+    files: 1
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedImageTypes = [
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+      'image/gif',
+      'image/webp'
+    ];
+    
+    if (allowedImageTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid image type. Allowed: JPG, PNG, GIF, WEBP'));
     }
   }
 });
@@ -220,6 +245,16 @@ router.get('/auth/logout',
   AuthController.logout
 );
 
+// Emotion Detection from Selfies
+router.post('/emotion/analyze',
+  imageUpload.single('image'),
+  EmotionController.analyzeSelfie
+);
+
+router.get('/emotion/status',
+  EmotionController.getStatus
+);
+
 // API documentation endpoint
 router.get('/docs', (req, res) => {
   res.status(200).json({
@@ -270,6 +305,11 @@ router.get('/docs', (req, res) => {
           'GET /api/auth/login': 'Login with Microsoft account',
           'GET /api/auth/callback': 'OAuth callback (automatic)',
           'GET /api/auth/logout': 'Logout and clear session'
+        },
+        emotion: {
+          'POST /api/emotion/analyze': 'Analyze emotions from uploaded selfie (multipart/form-data)',
+          'POST /api/emotion/quick': 'Quick emotion check with base64 image (body: {image, service})',
+          'GET /api/emotion/status': 'Check available emotion detection services'
         },
         general: {
           'GET /api/health': 'Service health check',
