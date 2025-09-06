@@ -45,130 +45,70 @@ export const initializeDatabase = async () => {
   const conn = getConnection();
   
   try {
-    logger.info('Initializing database schema...');
     
-    // Documents table (we'll add vector support after checking TiDB version)
+    // Teams meetings and calendar events cache
     await conn.execute(`
-      CREATE TABLE IF NOT EXISTS documents (
-        id INT PRIMARY KEY AUTO_INCREMENT,
-        title VARCHAR(255) NOT NULL,
-        content LONGTEXT,
-        source_type ENUM('upload', 'youtube', 'web', 'notion') DEFAULT 'upload',
-        source_url VARCHAR(500),
-        metadata JSON,
-        embedding JSON COMMENT 'OpenAI embedding as JSON array',
-        content_hash VARCHAR(64) UNIQUE,
-        status ENUM('processing', 'completed', 'failed') DEFAULT 'processing',
+      CREATE TABLE IF NOT EXISTS teams_meetings (
+        id VARCHAR(255) PRIMARY KEY,
+        user_email VARCHAR(255) NOT NULL,
+        subject VARCHAR(500),
+        start_time DATETIME,
+        end_time DATETIME,
+        duration_minutes INT,
+        location VARCHAR(500),
+        organizer_name VARCHAR(255),
+        organizer_email VARCHAR(255),
+        attendees JSON COMMENT 'Array of attendee objects',
+        is_online_meeting BOOLEAN DEFAULT FALSE,
+        online_meeting_url TEXT,
+        online_meeting_provider VARCHAR(100),
+        online_meeting_data JSON COMMENT 'Full onlineMeeting object',
+        teams_thread_id VARCHAR(255),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        last_synced TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         
-        INDEX idx_source_type (source_type),
-        INDEX idx_status (status),
-        INDEX idx_created_at (created_at),
-        INDEX idx_content_hash (content_hash)
+        INDEX idx_user_email (user_email),
+        INDEX idx_start_time (start_time),
+        INDEX idx_is_online (is_online_meeting),
+        INDEX idx_last_synced (last_synced)
       )
     `);
     
-    // Agent sessions and workflow tracking
-    await conn.execute(`
-      CREATE TABLE IF NOT EXISTS agent_sessions (
-        id VARCHAR(36) PRIMARY KEY,
-        name VARCHAR(255),
-        user_context JSON,
-        workflow_type ENUM('document_analysis', 'content_research', 'knowledge_synthesis', 'youtube_analysis', 'youtube_research') DEFAULT 'document_analysis',
-        status ENUM('active', 'completed', 'failed') DEFAULT 'active',
-        total_steps INT DEFAULT 0,
-        completed_steps INT DEFAULT 0,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        
-        INDEX idx_status (status),
-        INDEX idx_workflow_type (workflow_type)
-      )
-    `);
+    // YouTube videos table - commented out since you're creating it manually in TiDB console
+    // await conn.execute(`
+    //   CREATE TABLE IF NOT EXISTS youtube_videos (
+    //     id INT AUTO_INCREMENT PRIMARY KEY,
+    //     video_id VARCHAR(255) UNIQUE NOT NULL,
+    //     title VARCHAR(500),
+    //     description TEXT,
+    //     channel_title VARCHAR(255),
+    //     url VARCHAR(500),
+    //     published_at DATETIME,
+    //     thumbnail_url VARCHAR(500),
+    //     search_tag VARCHAR(255),
+    //     session_id VARCHAR(36),
+    //     
+    //     -- Store embedding as VECTOR type (1536 dimensions for OpenAI embeddings)
+    //     content_embedding VECTOR(1536),
+    //     
+    //     -- Metadata
+    //     view_count BIGINT DEFAULT 0,
+    //     like_count BIGINT DEFAULT 0,
+    //     comment_count BIGINT DEFAULT 0,
+    //     
+    //     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    //     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    //     
+    //     INDEX idx_video_id (video_id),
+    //     INDEX idx_session (session_id),
+    //     INDEX idx_search_tag (search_tag),
+    //     INDEX idx_published (published_at)
+    //   )
+    // `);
     
-    // Detailed action logs for each step
-    await conn.execute(`
-      CREATE TABLE IF NOT EXISTS agent_actions (
-        id INT PRIMARY KEY AUTO_INCREMENT,
-        session_id VARCHAR(36) NOT NULL,
-        step_number INT NOT NULL,
-        action_type VARCHAR(100) NOT NULL,
-        tool_name VARCHAR(100),
-        input_data JSON,
-        output_data JSON,
-        execution_time_ms INT,
-        status ENUM('success', 'error') DEFAULT 'success',
-        error_message TEXT,
-        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        
-        FOREIGN KEY (session_id) REFERENCES agent_sessions(id) ON DELETE CASCADE,
-        INDEX idx_session_step (session_id, step_number),
-        INDEX idx_action_type (action_type),
-        INDEX idx_status (status)
-      )
-    `);
-    
-    // Search results and caching
-    await conn.execute(`
-      CREATE TABLE IF NOT EXISTS search_results (
-        id INT PRIMARY KEY AUTO_INCREMENT,
-        session_id VARCHAR(36),
-        query_text TEXT NOT NULL,
-        query_embedding JSON COMMENT 'Query embedding as JSON array',
-        results JSON,
-        result_count INT DEFAULT 0,
-        search_type ENUM('vector', 'fulltext', 'hybrid') DEFAULT 'vector',
-        similarity_threshold DECIMAL(3,2) DEFAULT 0.70,
-        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        
-        FOREIGN KEY (session_id) REFERENCES agent_sessions(id) ON DELETE SET NULL,
-        INDEX idx_session (session_id),
-        INDEX idx_search_type (search_type)
-      )
-    `);
-    
-    // Knowledge synthesis and insights
-    await conn.execute(`
-      CREATE TABLE IF NOT EXISTS knowledge_insights (
-        id INT PRIMARY KEY AUTO_INCREMENT,
-        session_id VARCHAR(36) NOT NULL,
-        insight_type ENUM('summary', 'analysis', 'recommendation', 'synthesis') NOT NULL,
-        title VARCHAR(255),
-        content TEXT,
-        confidence_score DECIMAL(3,2),
-        source_documents JSON,
-        metadata JSON,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        
-        FOREIGN KEY (session_id) REFERENCES agent_sessions(id) ON DELETE CASCADE,
-        INDEX idx_session_type (session_id, insight_type)
-      )
-    `);
-    
-    // External API integrations tracking
-    await conn.execute(`
-      CREATE TABLE IF NOT EXISTS api_integrations (
-        id INT PRIMARY KEY AUTO_INCREMENT,
-        session_id VARCHAR(36),
-        api_name VARCHAR(100) NOT NULL,
-        endpoint VARCHAR(255),
-        request_data JSON,
-        response_data JSON,
-        status_code INT,
-        response_time_ms INT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        
-        FOREIGN KEY (session_id) REFERENCES agent_sessions(id) ON DELETE SET NULL,
-        INDEX idx_api_name (api_name),
-        INDEX idx_status_code (status_code)
-      )
-    `);
-    
-    logger.info('Database schema initialized successfully');
-    
-    // Insert sample data for demonstration
-    await insertSampleData(conn);
+    logger.info('Database schema initialized successfully (including YouTube videos table with VECTOR support)');
+
     
   } catch (error) {
     logger.error('Database initialization failed:', error);
@@ -176,63 +116,6 @@ export const initializeDatabase = async () => {
   }
 };
 
-const insertSampleData = async (conn) => {
-  try {
-    // Check if sample data already exists
-    const existing = await conn.execute('SELECT COUNT(*) as count FROM documents');
-    // TiDB returns results as array directly, not wrapped in rows
-    const count = existing && existing[0] ? parseInt(existing[0].count) : 0;
-    
-    if (count > 0) {
-      logger.info('Sample data already exists, skipping insertion', { existingCount: count });
-      return;
-    }
-    
-    logger.info('Inserting sample documents...');
-    
-    const sampleDocs = [
-      {
-        title: 'AI Agent Architecture Patterns',
-        content: 'Modern AI agents utilize multi-step workflows to break down complex tasks into manageable components. Key patterns include tool-calling agents, chain-of-thought reasoning, and hierarchical task decomposition.',
-        source_type: 'upload',
-        metadata: { category: 'ai', tags: ['architecture', 'patterns'] }
-      },
-      {
-        title: 'TiDB Vector Search Capabilities',
-        content: 'TiDB Serverless provides native vector search functionality with cosine similarity, enabling semantic search over large document collections. It supports high-dimensional embeddings and efficient indexing.',
-        source_type: 'upload',
-        metadata: { category: 'database', tags: ['tidb', 'vector-search'] }
-      },
-      {
-        title: 'Model Context Protocol (MCP) Guide',
-        content: 'MCP enables AI agents to interact with external tools and services through a standardized protocol. It supports tool discovery, parameter validation, and result handling.',
-        source_type: 'upload',
-        metadata: { category: 'protocol', tags: ['mcp', 'tools'] }
-      }
-    ];
-    
-    for (const doc of sampleDocs) {
-      await conn.execute(`
-        INSERT INTO documents (title, content, source_type, metadata, content_hash, status)
-        VALUES (?, ?, ?, ?, MD5(CONCAT(?, ?)), 'completed')
-      `, [
-        doc.title,
-        doc.content,
-        doc.source_type,
-        JSON.stringify(doc.metadata),
-        doc.title,
-        doc.content
-      ]);
-    }
-    
-    logger.info('Sample data inserted successfully');
-    
-  } catch (error) {
-    logger.error('Failed to insert sample data:', error);
-  }
-};
-
-// Run initialization if this file is executed directly
 if (import.meta.url === `file://${process.argv[1]}`) {
   await testConnection();
   await initializeDatabase();

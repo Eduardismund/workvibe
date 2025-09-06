@@ -64,7 +64,8 @@ const config = {
     user: envVars.DB_USER,
     password: envVars.DB_PASSWORD,
     database: envVars.DB_NAME,
-    ssl: envVars.DB_SSL ? { minVersion: 'TLSv1.2', rejectUnauthorized: true } : false
+    ssl: envVars.DB_SSL ? { minVersion: 'TLSv1.2', rejectUnauthorized: true } : false,
+    url: `mysql://${envVars.DB_USER}:${envVars.DB_PASSWORD}@${envVars.DB_HOST}:${envVars.DB_PORT}/${envVars.DB_NAME}?ssl={"rejectUnauthorized":true}`
   },
   
   openai: {

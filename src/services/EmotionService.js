@@ -53,7 +53,6 @@ class EmotionService {
 
       return {
         emotions,
-        dominantEmotion: this.getDominantEmotion(face.Emotions),
         faceDetails: {
           ageRange: `${face.AgeRange.Low}-${face.AgeRange.High}`,
           gender: face.Gender.Value,
@@ -120,6 +119,12 @@ class EmotionService {
    * Analyze emotions - tries AWS first, falls back to OpenAI
    */
   async analyzeEmotion(imageBuffer, preferredService = 'aws') {
+    logger.info('analyzeEmotion called', { 
+      hasBuffer: !!imageBuffer, 
+      bufferSize: imageBuffer?.length,
+      service: preferredService 
+    });
+    
     try {
       if (preferredService === 'aws' && this.awsConfigured) {
         logger.info('Using AWS Rekognition for emotion analysis');
@@ -151,21 +156,6 @@ class EmotionService {
     }
   }
 
-  /**
-   * Get dominant emotion from AWS emotions array
-   */
-  getDominantEmotion(emotions) {
-    if (!emotions || emotions.length === 0) return 'neutral';
-    
-    let dominant = emotions[0];
-    for (const emotion of emotions) {
-      if (emotion.Confidence > dominant.Confidence) {
-        dominant = emotion;
-      }
-    }
-    
-    return dominant.Type.toLowerCase();
-  }
 
 }
 

@@ -2,6 +2,7 @@ import { ConfidentialClientApplication } from '@azure/msal-node';
 import config from '../config/index.js';
 import logger from '../utils/logger.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
+import TeamsService from '../services/TeamsService.js';
 
 class AuthController {
   constructor() {
@@ -14,13 +15,24 @@ class AuthController {
     };
     
     this.msalClient = new ConfidentialClientApplication(this.msalConfig);
-    this.SCOPES = ['openid', 'profile', 'email', 'Calendars.Read'];
+    this.SCOPES = [
+      'openid', 
+      'profile', 
+      'email', 
+      'Calendars.Read',
+      'Chat.Read',
+      'Chat.ReadWrite',
+      'ChatMessage.Send',
+      'OnlineMeetings.Read',
+      'OnlineMeetings.ReadWrite'
+    ];
   }
 
   login = asyncHandler(async (req, res) => {
     const authUrl = await this.msalClient.getAuthCodeUrl({
       scopes: this.SCOPES,
-      redirectUri: config.external.microsoft.redirectUri
+      redirectUri: config.external.microsoft.redirectUri,
+      prompt: 'consent'
     });
     
     res.redirect(authUrl);
@@ -43,6 +55,23 @@ class AuthController {
       req.session.accessToken = response.accessToken;
       req.session.account = response.account;
       req.session.isAuthenticated = true;
+      req.session.userPrincipalName = response.account.username;
+      req.session.userEmail = response.account.username; // Store email for cache lookup
+      
+      try {
+        logger.info('Fetching and caching Teams meetings on login', { 
+          userEmail: response.account.username 
+        });
+        
+        await TeamsService.getUserCalendarEvents(response.account.username, {
+          userToken: response.accessToken,
+          userEmail: response.account.username,
+          forceRefresh: true
+        });
+        
+      } catch (cacheError) {
+        logger.warn('Failed to fetch and cache meetings on login', { error: cacheError.message });
+      }
       
       res.redirect('/api/teams/today');
       

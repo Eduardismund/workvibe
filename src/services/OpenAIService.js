@@ -31,6 +31,10 @@ class OpenAIService {
     }
   }
   
+  async generateCompletion(messages, options = {}) {
+    return await this.chat(messages, options);
+  }
+  
   async chat(messages, options = {}) {
     const startTime = Date.now();
     
@@ -63,80 +67,7 @@ class OpenAIService {
       throw error;
     }
   }
-  
-  async summarizeDocuments(documents, query, options = {}) {
-    const systemMessage = {
-      role: 'system',
-      content: `You are an AI assistant specialized in analyzing and summarizing documents. 
-                Your task is to provide comprehensive summaries that are accurate, relevant, and well-structured.
-                Focus on key insights, relationships between documents, and actionable information.`
-    };
-    
-    const userMessage = {
-      role: 'user',
-      content: `Based on the following documents, please provide a comprehensive analysis for this query: "${query}"
-      
-Documents:
-${documents.map((doc, idx) => `
-${idx + 1}. Title: ${doc.title}
-   Source: ${doc.source_type}${doc.source_url ? ` (${doc.source_url})` : ''}
-   Similarity: ${doc.similarity ? (doc.similarity * 100).toFixed(1) + '%' : 'N/A'}
-   Content: ${doc.content ? doc.content.substring(0, 1000) : 'No content available'}...
-`).join('\n')}
 
-Please structure your response with:
-1. **Executive Summary** - Key findings in 2-3 sentences
-2. **Detailed Analysis** - Main insights from the documents
-3. **Document Relationships** - How the documents relate to each other
-4. **Recommendations** - Actionable next steps or suggestions
-5. **Source Summary** - Brief description of each document's contribution`
-    };
-    
-    return await this.chat([systemMessage, userMessage], {
-      temperature: 0.3,
-      max_tokens: 3000,
-      ...options
-    });
-  }
-  
-  async analyzeContent(content, analysisType = 'general', options = {}) {
-    const analysisPrompts = {
-      general: 'Analyze this content and provide key insights, themes, and important information.',
-      technical: 'Perform a technical analysis focusing on implementation details, architecture, and best practices.',
-      research: 'Conduct a research-oriented analysis highlighting key findings, methodologies, and conclusions.',
-      educational: 'Create an educational summary that breaks down complex concepts into understandable parts.',
-      creative: 'Provide a creative analysis focusing on innovative ideas, unique approaches, and potential applications.'
-    };
-    
-    const systemMessage = {
-      role: 'system',
-      content: `You are an expert content analyst. Your role is to provide thorough, 
-                insightful analysis that extracts maximum value from the given content.
-                Be objective, comprehensive, and actionable in your analysis.`
-    };
-    
-    const userMessage = {
-      role: 'user',
-      content: `${analysisPrompts[analysisType] || analysisPrompts.general}
-      
-Content to analyze:
-${content}
-
-Please provide:
-1. **Key Themes** - Main topics and concepts
-2. **Important Details** - Critical information and data points  
-3. **Insights** - Deeper understanding and implications
-4. **Context** - Background and relevance
-5. **Applications** - Practical uses and next steps`
-    };
-    
-    return await this.chat([systemMessage, userMessage], {
-      temperature: 0.4,
-      max_tokens: 2500,
-      ...options
-    });
-  }
-  
   async generateTags(content, maxTags = 10) {
     const systemMessage = {
       role: 'system',
@@ -164,34 +95,111 @@ Return format: ["tag1", "tag2", "tag3", ...]`
       return [];
     }
   }
-  
-  async extractKeyPhrases(content, maxPhrases = 15) {
-    const systemMessage = {
-      role: 'system',
-      content: 'Extract key phrases and concepts from content. Return only a JSON array of strings.'
-    };
+
+  /**
+   * Generate YouTube search tags and context description from user context
+   * @param {Object} context - Context object containing emotions, calendar, description
+   * @returns {Promise<Object>} Object with tags array and contextDescription string
+   */
+  async generateContextTags(context) {
+    const { emotionData, calendarEvents, description } = context;
     
-    const userMessage = {
-      role: 'user',
-      content: `Extract ${maxPhrases} key phrases from this content:
-
-${content.substring(0, 2000)}
-
-Return format: ["phrase1", "phrase2", "phrase3", ...]`
-    };
+    const contextPrompt = `
+      Analyze the following context and extract meaningful insights that would be further used in YouTube:
+      
+      1. User description of how they are feeling: ${description || 'No description provided'}
+      
+      2. Emotional State from Selfie:
+      - All Emotions: ${JSON.stringify(emotionData?.emotions || {}, null, 2)}
+      - Primary Emotion: ${emotionData?.primaryEmotion || 'Unknown'}
+      
+      3. Today's Calendar (${calendarEvents?.length || 0} events):
+      ${calendarEvents?.map(event => `- ${event.subject}: ${event.start?.dateTime} to ${event.end?.dateTime}`).join('\n') || 'No events scheduled'}
+      
+      Based on this context, provide:
+      1. A list of meaningful YouTube searchable tags that capture the essence of the user's current state and context
+      2. A detailed contextual description that encompasses the user's expected feelings, needs, and desired content type for similarity matching against YouTube videos
+      
+      Format your response as JSON:
+      {
+        "tags": ["tag1", "tag2", ...],
+        "contextDescription": "A comprehensive description of what the user is feeling and what type of content would best serve their current emotional and contextual needs. This should be detailed enough to be used for semantic similarity matching against video content."
+      }
+    `;
     
     try {
-      const response = await this.chat([systemMessage, userMessage], {
-        temperature: 0.2,
-        max_tokens: 300
+      const response = await this.generateCompletion([
+        {
+          role: 'user',
+          content: contextPrompt
+        }
+      ], {
+        model: 'gpt-4',
+        temperature: 0.7,
+        max_tokens: 500
+      });
+
+      const result = JSON.parse(response.content);
+      
+      logger.info('Generated context tags and description', {
+        tagCount: result.tags?.length || 0,
+        hasContextDescription: !!result.contextDescription,
+        hasEmotions: !!emotionData,
+        eventCount: calendarEvents?.length || 0
       });
       
-      return JSON.parse(response.content);
+      return result;
     } catch (error) {
-      logger.logError(error, { content: content.substring(0, 100) });
-      return [];
+      logger.error('Failed to generate context tags', { error: error.message });
+      return { tags: [], contextDescription: '' };
     }
   }
+
+  /**
+   * Generate embedding for YouTube video including comments
+   * @param {Object} video - Video object with title, description
+   * @param {Array} comments - Array of comment objects
+   * @returns {Promise<Array>} Embedding vector
+   */
+  async generateVideoEmbedding(video, comments = []) {
+    try {
+      // Extract comment text
+      const commentsText = comments.map(comment => 
+        comment.text ||
+        ''
+      ).join(' ');
+      
+      // Combine video content with comments
+      const textToEmbed = [
+        video.title || '',
+        video.description || '',
+        commentsText
+      ].filter(text => text.trim()).join(' ');
+      
+      if (!textToEmbed.trim()) {
+        logger.warn('No text to embed for video', { videoId: video.videoId });
+        return null;
+      }
+      
+      // Generate embedding
+      const embedding = await this.generateEmbedding(textToEmbed);
+      
+      logger.info('Generated video embedding with comments', {
+        videoId: video.videoId,
+        commentCount: comments.length,
+        textLength: textToEmbed.length
+      });
+      
+      return embedding;
+    } catch (error) {
+      logger.error('Failed to generate video embedding', {
+        videoId: video.videoId,
+        error: error.message
+      });
+      throw error;
+    }
+  }
+
 }
 
 export default new OpenAIService();
