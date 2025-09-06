@@ -239,6 +239,24 @@ class AgentSessionModel {
     const conn = getConnection();
     
     try {
+      // First check if table exists, if not create it
+      await conn.execute(`
+        CREATE TABLE IF NOT EXISTS agent_sessions (
+          id VARCHAR(36) PRIMARY KEY,
+          name VARCHAR(255),
+          workflow_type VARCHAR(255),
+          status ENUM('active', 'completed', 'failed') DEFAULT 'active',
+          user_context JSON,
+          completed_steps INT DEFAULT 0,
+          total_steps INT DEFAULT 0,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          INDEX idx_status (status),
+          INDEX idx_workflow (workflow_type),
+          INDEX idx_created (created_at)
+        )
+      `);
+
       const result = await conn.execute(`
         SELECT 
           COUNT(*) as total_sessions,
@@ -250,10 +268,25 @@ class AgentSessionModel {
         FROM agent_sessions
       `);
       
-      return result.rows[0];
+      return result.rows?.[0] || {
+        total_sessions: 0,
+        active_sessions: 0,
+        completed_sessions: 0,
+        failed_sessions: 0,
+        avg_steps_completed: 0,
+        workflow_types: 0
+      };
     } catch (error) {
       logger.logError(error);
-      throw error;
+      // Return default stats if there's any error
+      return {
+        total_sessions: 0,
+        active_sessions: 0,
+        completed_sessions: 0,
+        failed_sessions: 0,
+        avg_steps_completed: 0,
+        workflow_types: 0
+      };
     }
   }
 }

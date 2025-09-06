@@ -1,20 +1,13 @@
 import express from 'express';
 import multer from 'multer';
 import path from 'path';
-import DocumentController from '../controllers/DocumentController.js';
 import AgentController from '../controllers/AgentController.js';
 import YouTubeController from '../controllers/YouTubeController.js';
 import TeamsController from '../controllers/TeamsController.js';
 import AuthController from '../controllers/AuthController.js';
 import EmotionController from '../controllers/EmotionController.js';
-import { 
-  validateDocumentUpload,
-  validateSearch,
-  validateDocumentId,
-  validateSessionId,
-  validateAnalysis,
-  validatePagination,
-  validateWorkflowType,
+import IngestionController from '../controllers/IngestionController.js';
+import {
   sanitizeInput
 } from '../middleware/validation.js';
 
@@ -92,145 +85,49 @@ router.get('/health', (req, res) => {
   });
 });
 
-// Document routes
-router.post('/documents/upload', 
-  upload.single('document'),
-  validateDocumentUpload,
-  DocumentController.uploadDocument
-);
-
-router.post('/documents/process',
-  upload.single('document'),
-  DocumentController.processWithAgent
-);
-
-router.get('/documents/search',
-  validateSearch,
-  DocumentController.searchDocuments
-);
-
-router.post('/documents/analyze',
-  validateAnalysis,
-  DocumentController.analyzeDocuments
-);
-
-router.get('/documents',
-  validatePagination,
-  DocumentController.listDocuments
-);
-
-router.get('/documents/stats',
-  DocumentController.getStats
-);
-
-router.get('/documents/:id',
-  validateDocumentId,
-  DocumentController.getDocument
-);
-
-router.delete('/documents/:id',
-  validateDocumentId,
-  DocumentController.deleteDocument
-);
+// Document routes removed - using TiDB storage directly
 
 // Agent workflow routes
-router.post('/agent/session',
-  validateWorkflowType,
-  AgentController.createSession
-);
-
-router.post('/agent/workflow',
-  AgentController.executeWorkflow
-);
-
-router.post('/agent/analyze',
-  AgentController.analyzeDocument
-);
-
-router.post('/agent/research',
-  AgentController.researchContent
-);
-
-router.post('/agent/demo',
-  AgentController.runDemo
-);
-
-router.get('/agent/health',
-  AgentController.healthCheck
-);
-
-router.get('/agent/stats',
-  AgentController.getAgentStats
-);
-
-router.get('/agent/sessions',
-  validatePagination,
-  AgentController.listSessions
-);
-
-router.get('/agent/sessions/:sessionId',
-  validateSessionId,
-  AgentController.getSessionStatus
-);
-
-router.get('/agent/sessions/:sessionId/summary',
-  validateSessionId,
-  AgentController.getSessionSummary
-);
-
-router.get('/agent/sessions/:sessionId/actions',
-  validateSessionId,
-  AgentController.getSessionActions
-);
 
 // YouTube routes
-router.get('/youtube/metadata',
-  YouTubeController.getVideoMetadata
+router.get('/youtube/shorts',
+  YouTubeController.searchShorts
 );
 
-router.get('/youtube/transcript',
-  YouTubeController.getVideoTranscript
+router.get('/youtube/comments',
+  YouTubeController.getVideoComments
 );
 
-router.get('/youtube/search',
-  YouTubeController.searchVideos
+// Test endpoint for YouTube to TiDB storage
+router.post('/test/youtube-tidb',
+  YouTubeController.testYouTubeTiDBStorage
 );
 
-router.get('/youtube/related',
-  YouTubeController.getRelatedVideos
-);
-
-router.get('/youtube/channel',
-  YouTubeController.getChannelInfo
-);
-
-router.post('/youtube/process',
-  YouTubeController.processVideo
-);
-
-router.post('/youtube/analyze',
-  YouTubeController.analyzeVideo
-);
-
-router.post('/youtube/research',
-  YouTubeController.researchTopic
-);
-
-router.post('/youtube/workflow/analyze',
-  YouTubeController.executeYouTubeAnalysisWorkflow
-);
-
-router.post('/youtube/workflow/research',
-  YouTubeController.executeYouTubeResearchWorkflow
-);
-
-router.post('/youtube/demo',
-  YouTubeController.runYouTubeDemo
+// Test similarity between sentence and all YouTube videos in DB
+router.post('/youtube/test-similarity',
+  YouTubeController.testSimilarity
 );
 
 // Teams Integration - Only what you need
 router.get('/teams/today', 
   TeamsController.getTodaysMeetings
+);
+
+
+// List user's chats (for debugging)
+router.get('/teams/chats',
+  TeamsController.listUserChats
+);
+
+// Send message to Teams meeting by meeting ID
+router.post('/teams/meetings/:meetingId/message',
+  TeamsController.sendMeetingMessage
+);
+
+
+// Send message to Teams meeting by calendar event ID
+router.post('/teams/events/:eventId/message',
+  TeamsController.sendEventMessage
 );
 
 router.get('/auth/login',
@@ -251,8 +148,21 @@ router.post('/emotion/analyze',
   EmotionController.analyzeSelfie
 );
 
-router.get('/emotion/status',
-  EmotionController.getStatus
+
+// Context Analysis Workflow - Combines emotion, calendar, and description
+router.post('/agent/context/analyze',
+  imageUpload.single('selfie'),
+  AgentController.analyzeContext
+);
+
+
+// Ingestion routes
+router.post('/ingest/curate',
+  IngestionController.getCuratedFeed
+);
+
+router.get('/ingest/stats',
+  IngestionController.getStats
 );
 
 // API documentation endpoint
@@ -264,33 +174,15 @@ router.get('/docs', (req, res) => {
       version: '1.0.0',
       description: 'Advanced Multi-step AI Agent with TiDB and MCP',
       endpoints: {
-        documents: {
-          'POST /api/documents/upload': 'Upload and process document',
-          'POST /api/documents/process': 'Process document with AI agent',
-          'GET /api/documents/search': 'Search documents with vector/text search',
-          'POST /api/documents/analyze': 'Analyze documents with AI',
-          'GET /api/documents': 'List documents with pagination',
-          'GET /api/documents/stats': 'Get document statistics',
-          'GET /api/documents/:id': 'Get document by ID',
-          'DELETE /api/documents/:id': 'Delete document'
-        },
         agent: {
-          'POST /api/agent/session': 'Create new agent session',
-          'POST /api/agent/workflow': 'Execute workflow',
-          'POST /api/agent/analyze': 'Document analysis workflow',
-          'POST /api/agent/research': 'Content research workflow',
-          'POST /api/agent/demo': 'Run demo workflow',
-          'GET /api/agent/health': 'Agent system health check',
-          'GET /api/agent/stats': 'Agent statistics',
-          'GET /api/agent/sessions': 'List sessions',
-          'GET /api/agent/sessions/:id': 'Get session status',
-          'GET /api/agent/sessions/:id/summary': 'Get session summary',
-          'GET /api/agent/sessions/:id/actions': 'Get session actions'
+          'POST /api/agent/context/analyze': 'Context analysis combining emotion, calendar, and description (multipart: selfie + description)',
+          'GET /api/agent/health': 'Agent system health check'
         },
         youtube: {
           'GET /api/youtube/metadata': 'Get video metadata (query: videoUrl)',
           'GET /api/youtube/transcript': 'Get video transcript (query: videoUrl)',
           'GET /api/youtube/search': 'Search videos (query: query, maxResults)',
+          'GET /api/youtube/shorts': 'Search YouTube Shorts videos (query: query, maxResults)',
           'GET /api/youtube/related': 'Get related videos (query: videoUrl, maxResults)',
           'GET /api/youtube/channel': 'Get channel info (query: channelId)',
           'POST /api/youtube/process': 'Process video and store as document',
@@ -301,15 +193,24 @@ router.get('/docs', (req, res) => {
           'POST /api/youtube/demo': 'Run YouTube demo (body: scenario)'
         },
         teams: {
-          'GET /api/teams/today': 'Get today\'s meetings for authenticated user',
+          'GET /api/teams/today': 'Get today\'s meetings for authenticated user (includes attendees)',
+          'POST /api/teams/meetings/:meetingId/message': 'Send message to Teams meeting chat (body: {message})',
+          'POST /api/teams/events/:eventId/message': 'Send message to calendar event\'s Teams meeting (body: {message})',
           'GET /api/auth/login': 'Login with Microsoft account',
           'GET /api/auth/callback': 'OAuth callback (automatic)',
           'GET /api/auth/logout': 'Logout and clear session'
         },
         emotion: {
           'POST /api/emotion/analyze': 'Analyze emotions from uploaded selfie (multipart/form-data)',
-          'POST /api/emotion/quick': 'Quick emotion check with base64 image (body: {image, service})',
           'GET /api/emotion/status': 'Check available emotion detection services'
+        },
+        curation: {
+          'POST /api/agent/curate/feed': 'AI-orchestrated YouTube curation with full workflow tracking (multipart: selfie + photo) [RECOMMENDED]',
+          'POST /api/curate/feed': 'Legacy: Direct curation service (multipart: selfie + photo)',
+          'POST /api/curate/analyze': 'Analyze context only without generating feed (multipart: selfie + photo)',
+          'POST /api/curate/quick': 'Quick curation using manual inputs (body: {emotion, stress, energy})',
+          'POST /api/curate/feedback': 'Provide feedback on recommendations (body: {historyId, videoId, action, watchTime})',
+          'POST /api/curate/init': 'Initialize TiDB vector tables (admin only)'
         },
         general: {
           'GET /api/health': 'Service health check',
@@ -317,14 +218,14 @@ router.get('/docs', (req, res) => {
         }
       },
       workflows: {
-        document_analysis: {
-          description: 'Multi-step document ingestion, search, and AI analysis',
+        context_analysis: {
+          description: 'Analyze user context combining emotion, calendar, and description',
           steps: [
-            'Ingest document with vector embeddings',
-            'Search for similar documents',
-            'Analyze with LLM',
-            'Extract key insights',
-            'Generate comprehensive report'
+            'Analyze selfie emotions using AWS Rekognition',
+            'Fetch today\'s calendar events from Teams',
+            'Combine context with user description',
+            'AI analysis to extract tags and insights',
+            'Generate comprehensive context report'
           ]
         },
         content_research: {

@@ -15,82 +15,11 @@ const handleValidationErrors = (req, res, next) => {
   next();
 };
 
-const validateDocumentUpload = [
-  body('title')
-    .notEmpty()
-    .withMessage('Title is required')
-    .isLength({ min: 1, max: 255 })
-    .withMessage('Title must be between 1 and 255 characters'),
-  
-  body('sourceType')
-    .optional()
-    .isIn(['upload', 'web', 'youtube', 'notion'])
-    .withMessage('Source type must be one of: upload, web, youtube, notion'),
-  
-  body('sourceUrl')
-    .optional()
-    .isURL()
-    .withMessage('Source URL must be a valid URL'),
-  
-  handleValidationErrors
-];
-
-const validateSearch = [
-  query('query')
-    .notEmpty()
-    .withMessage('Query is required')
-    .isLength({ min: 1, max: 500 })
-    .withMessage('Query must be between 1 and 500 characters'),
-  
-  query('searchType')
-    .optional()
-    .isIn(['vector', 'fulltext', 'hybrid'])
-    .withMessage('Search type must be one of: vector, fulltext, hybrid'),
-  
-  query('limit')
-    .optional()
-    .isInt({ min: 1, max: 50 })
-    .withMessage('Limit must be between 1 and 50'),
-  
-  query('similarityThreshold')
-    .optional()
-    .isFloat({ min: 0, max: 1 })
-    .withMessage('Similarity threshold must be between 0 and 1'),
-  
-  handleValidationErrors
-];
-
-const validateDocumentId = [
-  param('id')
-    .isInt({ min: 1 })
-    .withMessage('Document ID must be a positive integer'),
-  
-  handleValidationErrors
-];
 
 const validateSessionId = [
   param('sessionId')
     .isUUID()
     .withMessage('Session ID must be a valid UUID'),
-  
-  handleValidationErrors
-];
-
-const validateAnalysis = [
-  body('documents')
-    .isArray({ min: 1 })
-    .withMessage('Documents array is required and must not be empty'),
-  
-  body('query')
-    .notEmpty()
-    .withMessage('Analysis query is required')
-    .isLength({ min: 1, max: 1000 })
-    .withMessage('Query must be between 1 and 1000 characters'),
-  
-  body('analysisType')
-    .optional()
-    .isIn(['general', 'technical', 'research', 'educational', 'creative'])
-    .withMessage('Analysis type must be one of: general, technical, research, educational, creative'),
   
   handleValidationErrors
 ];
@@ -150,11 +79,7 @@ const sanitizeInput = (req, res, next) => {
 };
 
 export {
-  validateDocumentUpload,
-  validateSearch,
-  validateDocumentId,
   validateSessionId,
-  validateAnalysis,
   validatePagination,
   validateWorkflowType,
   sanitizeInput,

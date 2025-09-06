@@ -1,55 +1,11 @@
 import YouTubeService from '../services/YouTubeService.js';
-import DirectAgentService from '../services/DirectAgentService.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import logger from '../utils/logger.js';
 
 class YouTubeController {
-  // Get video metadata
-  getVideoMetadata = asyncHandler(async (req, res) => {
-    const { videoUrl } = req.query;
-    
-    if (!videoUrl) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'videoUrl parameter is required'
-      });
-    }
-    
-    logger.info('Fetching video metadata', { videoUrl });
-    
-    const videoId = YouTubeService.extractVideoId(videoUrl);
-    const metadata = await YouTubeService.getVideoMetadata(videoId);
-    
-    res.status(200).json({
-      status: 'success',
-      data: { metadata }
-    });
-  });
   
-  // Get video transcript
-  getVideoTranscript = asyncHandler(async (req, res) => {
-    const { videoUrl } = req.query;
-    
-    if (!videoUrl) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'videoUrl parameter is required'
-      });
-    }
-    
-    logger.info('Fetching video transcript', { videoUrl });
-    
-    const videoId = YouTubeService.extractVideoId(videoUrl);
-    const transcript = await YouTubeService.getTranscript(videoId);
-    
-    res.status(200).json({
-      status: 'success',
-      data: { transcript }
-    });
-  });
-  
-  // Search videos
-  searchVideos = asyncHandler(async (req, res) => {
+  // Search YouTube Shorts
+  searchShorts = asyncHandler(async (req, res) => {
     const { query, maxResults = 10 } = req.query;
     
     if (!query) {
@@ -59,22 +15,23 @@ class YouTubeController {
       });
     }
     
-    logger.info('Searching YouTube videos', { query, maxResults });
+    logger.info('Searching YouTube Shorts', { query, maxResults });
     
-    const videos = await YouTubeService.searchVideos(query, parseInt(maxResults));
+    const shorts = await YouTubeService.searchShorts(query, parseInt(maxResults));
     
     res.status(200).json({
       status: 'success',
       data: { 
-        videos,
-        count: videos.length,
-        query
+        shorts,
+        count: shorts.length,
+        query,
+        type: 'shorts'
       }
     });
   });
   
-  // Get related videos
-  getRelatedVideos = asyncHandler(async (req, res) => {
+  // Get video comments
+  getVideoComments = asyncHandler(async (req, res) => {
     const { videoUrl, maxResults = 5 } = req.query;
     
     if (!videoUrl) {
@@ -84,225 +41,186 @@ class YouTubeController {
       });
     }
     
-    logger.info('Fetching related videos', { videoUrl, maxResults });
+    logger.info('Fetching video comments', { videoUrl, maxResults });
     
     const videoId = YouTubeService.extractVideoId(videoUrl);
-    const relatedVideos = await YouTubeService.getRelatedVideos(videoId, parseInt(maxResults));
+    const comments = await YouTubeService.getVideoComments(videoId, parseInt(maxResults));
     
     res.status(200).json({
       status: 'success',
       data: { 
-        relatedVideos,
-        count: relatedVideos.length,
-        sourceVideoId: videoId
+        comments,
+        count: comments.length,
+        videoId
       }
     });
   });
-  
-  // Get channel information
-  getChannelInfo = asyncHandler(async (req, res) => {
-    const { channelId } = req.query;
+
+  // Test similarity between a sentence and all YouTube videos in DB using TiDB vector functions
+  testSimilarity = asyncHandler(async (req, res) => {
+    const { sentence, limit = 10, threshold = 0.5 } = req.body;
     
-    if (!channelId) {
+    if (!sentence) {
       return res.status(400).json({
         status: 'error',
-        message: 'channelId parameter is required'
+        message: 'sentence parameter is required'
       });
     }
     
-    logger.info('Fetching channel info', { channelId });
+    logger.info('Testing similarity for sentence using TiDB vector search', { sentence, limit, threshold });
     
-    const channel = await YouTubeService.getChannelInfo(channelId);
-    
-    res.status(200).json({
-      status: 'success',
-      data: { channel }
-    });
-  });
-  
-  // Process video and store as document
-  processVideo = asyncHandler(async (req, res) => {
-    const { videoUrl, additionalMetadata = {} } = req.body;
-    
-    if (!videoUrl) {
-      return res.status(400).json({
+    try {
+      // Import required services
+      const YouTubeVideoModel = (await import('../models/YouTubeVideo.js')).default;
+      const OpenAIService = (await import('../services/OpenAIService.js')).default;
+      
+      // Check TiDB version first
+      const conn = (await import('../config/database.js')).getConnection();
+      const versionResult = await conn.execute('SELECT VERSION() as version');
+      logger.info('TiDB Version', { version: versionResult?.rows?.[0] || versionResult });
+      
+      // Step 1: Generate embedding for the input sentence
+      const sentenceEmbedding = await OpenAIService.generateEmbedding(sentence);
+      logger.info('Generated embedding for input sentence');
+      
+      // Step 2: Use TiDB's vector similarity search
+      const similarVideos = await YouTubeVideoModel.findSimilar(sentenceEmbedding, limit, threshold);
+      
+      logger.info('Found similar videos', { count: similarVideos?.length || 0 });
+      
+      // Step 3: Format results with detailed information
+      const formattedResults = (similarVideos || []).map(video => ({
+        videoId: video.video_id,
+        title: video.title,
+        description: video.description?.substring(0, 200) + (video.description?.length > 200 ? '...' : ''),
+        channelTitle: video.channel_title,
+        url: video.url,
+        searchTag: video.search_tag,
+        similarity: video.similarity
+      }));
+      
+      // Step 4: Get total count of videos with embeddings for statistics
+      const dbConn = (await import('../config/database.js')).getConnection();
+      const countResult = await dbConn.execute(`
+        SELECT COUNT(*) as total FROM youtube_videos WHERE content_embedding IS NOT NULL
+      `);
+      
+      // Handle both array and object result formats
+      const countData = Array.isArray(countResult) ? countResult : countResult?.rows;
+      
+      logger.info('Count query result', { 
+        isArray: Array.isArray(countResult),
+        hasData: !!countData,
+        dataLength: countData?.length,
+        firstRow: countData?.[0]
+      });
+      
+      const totalVideos = countData?.[0]?.total || 0;
+      
+      // Step 5: Return comprehensive results
+      res.json({
+        status: 'success',
+        data: {
+          sentence,
+          totalVideosInDatabase: totalVideos,
+          videosAboveThreshold: formattedResults.length,
+          topResults: formattedResults,
+          statistics: {
+            highestSimilarity: formattedResults[0]?.similarity || 0,
+            lowestSimilarity: formattedResults[formattedResults.length - 1]?.similarity || 0,
+            averageSimilarity: formattedResults.length > 0 
+              ? formattedResults.reduce((sum, r) => sum + r.similarity, 0) / formattedResults.length 
+              : 0
+          },
+          parameters: {
+            limit,
+            threshold,
+            embeddingModel: 'text-embedding-ada-002'
+          },
+          tidbVectorFunction: 'VEC_Cosine_Distance'
+        }
+      });
+      
+    } catch (error) {
+      logger.error('Failed to test similarity', { error: error.message });
+      res.status(500).json({
         status: 'error',
-        message: 'videoUrl is required in request body'
+        message: 'Failed to test similarity',
+        error: error.message
       });
     }
-    
-    logger.info('Processing YouTube video', { videoUrl });
-    
-    const result = await YouTubeService.processVideo(videoUrl, {
-      additionalMetadata
-    });
-    
-    res.status(201).json({
-      status: 'success',
-      data: result
-    });
   });
-  
-  // Analyze video with AI
-  analyzeVideo = asyncHandler(async (req, res) => {
-    const { videoUrl, analysisType = 'general' } = req.body;
+
+  // Test YouTube to TiDB storage
+  testYouTubeTiDBStorage = asyncHandler(async (req, res) => {
+    const { searchQuery = 'programming tutorial' } = req.body;
     
-    if (!videoUrl) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'videoUrl is required in request body'
-      });
+    logger.info('Testing YouTube to TiDB storage', { searchQuery });
+    
+    // Step 1: Table already exists (created manually in TiDB console with VECTOR support)
+    const YouTubeVideoModel = (await import('../models/YouTubeVideo.js')).default;
+    // await YouTubeVideoModel.createTable(); // Commented out - table created manually
+    logger.info('Using existing YouTube table with VECTOR support');
+    
+    // Step 2: Search for a few YouTube shorts
+    const shorts = await YouTubeService.searchShorts(searchQuery, 3);
+    logger.info('Found YouTube shorts', { count: shorts.length });
+    
+    // Step 3: Generate embeddings and store each video
+    const OpenAIService = (await import('../services/OpenAIService.js')).default;
+    const results = [];
+    
+    for (const short of shorts) {
+      try {
+        const comments = await YouTubeService.getVideoComments(short.videoId, 3);
+        
+        // Generate embedding using the new method
+        const embedding = await OpenAIService.generateVideoEmbedding(short, comments);
+        
+        // Store in TiDB
+        await YouTubeVideoModel.upsert({
+          videoId: short.videoId,
+          title: short.title,
+          description: short.description,
+          channelTitle: short.channelTitle,
+          url: short.url,
+          searchTag: searchQuery,
+          sessionId: `test-${Date.now()}`,
+          embedding: embedding,
+          comments: comments
+        });
+        
+        results.push({
+          videoId: short.videoId,
+          title: short.title,
+          stored: true,
+          hasEmbedding: !!embedding
+        });
+        
+      } catch (error) {
+        logger.error('Failed to store video', { videoId: short.videoId, error: error.message });
+        results.push({
+          videoId: short.videoId,
+          title: short.title,
+          stored: false,
+          error: error.message
+        });
+      }
     }
     
-    logger.info('Analyzing YouTube video', { videoUrl, analysisType });
+    // Step 4: Verify storage by reading back
+    const storedCount = results.filter(r => r.stored).length;
     
-    const analysis = await YouTubeService.analyzeVideo(videoUrl, analysisType);
-    
-    res.status(200).json({
+    res.json({
       status: 'success',
-      data: analysis
+      data: {
+        searchQuery,
+        videosFound: shorts.length,
+        videosStored: storedCount,
+        results,
+        message: `Successfully stored ${storedCount} out of ${shorts.length} videos in TiDB`
+      }
     });
-  });
-  
-  // Research topic across YouTube
-  researchTopic = asyncHandler(async (req, res) => {
-    const { topic, maxVideos = 5 } = req.body;
-    
-    if (!topic) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'topic is required in request body'
-      });
-    }
-    
-    logger.info('Researching YouTube topic', { topic, maxVideos });
-    
-    const research = await YouTubeService.researchTopic(topic, parseInt(maxVideos));
-    
-    res.status(200).json({
-      status: 'success',
-      data: research
-    });
-  });
-  
-  // Execute YouTube analysis workflow
-  executeYouTubeAnalysisWorkflow = asyncHandler(async (req, res) => {
-    const { videoUrl, analysisType = 'general' } = req.body;
-    
-    if (!videoUrl) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'videoUrl is required in request body'
-      });
-    }
-    
-    logger.info('Executing YouTube analysis workflow', { videoUrl, analysisType });
-    
-    const result = await DirectAgentService.executeYouTubeAnalysisWorkflow({
-      videoUrl,
-      analysisType
-    });
-    
-    res.status(200).json({
-      status: 'success',
-      data: { workflow: result }
-    });
-  });
-  
-  // Execute YouTube research workflow
-  executeYouTubeResearchWorkflow = asyncHandler(async (req, res) => {
-    const { topic, maxVideos = 5 } = req.body;
-    
-    if (!topic) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'topic is required in request body'
-      });
-    }
-    
-    logger.info('Executing YouTube research workflow', { topic, maxVideos });
-    
-    const result = await DirectAgentService.executeYouTubeResearchWorkflow({
-      topic,
-      maxVideos: parseInt(maxVideos)
-    });
-    
-    res.status(200).json({
-      status: 'success',
-      data: { workflow: result }
-    });
-  });
-  
-  // Demo: Process a sample YouTube video
-  runYouTubeDemo = asyncHandler(async (req, res) => {
-    const { scenario = 'basic' } = req.body;
-    
-    logger.info('Running YouTube demo', { scenario });
-    
-    let demoVideoUrl;
-    let demoTopic;
-    
-    switch (scenario) {
-      case 'basic':
-        // Demo with a sample video URL (you can replace with any valid YouTube URL)
-        demoVideoUrl = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
-        
-        const basicResult = await DirectAgentService.executeYouTubeAnalysisWorkflow({
-          videoUrl: demoVideoUrl,
-          analysisType: 'technical'
-        });
-        
-        res.status(200).json({
-          status: 'success',
-          data: {
-            demo: basicResult,
-            scenario,
-            message: 'YouTube video analysis workflow completed'
-          }
-        });
-        break;
-        
-      case 'research':
-        // Demo with topic research
-        demoTopic = 'artificial intelligence';
-        
-        const researchResult = await DirectAgentService.executeYouTubeResearchWorkflow({
-          topic: demoTopic,
-          maxVideos: 3
-        });
-        
-        res.status(200).json({
-          status: 'success',
-          data: {
-            demo: researchResult,
-            scenario,
-            message: 'YouTube research workflow completed'
-          }
-        });
-        break;
-        
-      case 'metadata':
-        // Simple metadata extraction demo
-        demoVideoUrl = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
-        const videoId = YouTubeService.extractVideoId(demoVideoUrl);
-        const metadata = await YouTubeService.getVideoMetadata(videoId);
-        
-        res.status(200).json({
-          status: 'success',
-          data: {
-            demo: metadata,
-            scenario,
-            message: 'YouTube metadata extraction completed'
-          }
-        });
-        break;
-        
-      default:
-        res.status(400).json({
-          status: 'error',
-          message: 'Invalid scenario. Choose: basic, research, or metadata'
-        });
-    }
   });
 }
 

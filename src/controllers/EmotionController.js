@@ -39,34 +39,6 @@ class EmotionController {
     }
   });
 
-  /**
-   * Get service status
-   */
-  getStatus = asyncHandler(async (req, res) => {
-    res.status(200).json({
-      status: 'success',
-      services: {
-        aws: {
-          available: !!process.env.AWS_ACCESS_KEY_ID,
-          name: 'AWS Rekognition',
-          features: ['8 emotions', 'face details', 'age/gender', 'accessories']
-        },
-        openai: {
-          available: true,
-          name: 'OpenAI Vision',
-          features: ['emotion description', 'nuanced analysis', 'context understanding']
-        }
-      },
-      usage: {
-        endpoint: '/api/emotion/analyze',
-        method: 'POST',
-        body: 'multipart/form-data with image file',
-        queryParams: {
-          service: 'aws or openai (optional, default: aws)'
-        }
-      }
-    });
-  });
 }
 
 export default new EmotionController();
