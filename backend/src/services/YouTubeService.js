@@ -105,6 +105,80 @@ class YouTubeService {
     }
   }
 
+  /**
+   * Get recommended videos based on a video (using search with related terms)
+   * Since YouTube API v3 removed related videos, we'll use channel + similar search terms
+   */
+  async getRecommendedVideos(videoId, maxResults = 10) {
+    try {
+      // First, get the video details to extract channel and tags
+      const videoResponse = await axios.get(`${this.baseUrl}/videos`, {
+        params: {
+          part: 'snippet,statistics',
+          id: videoId,
+          key: this.apiKey
+        }
+      });
+
+      if (!videoResponse.data.items?.length) {
+        throw new Error('Video not found');
+      }
+
+      const video = videoResponse.data.items[0];
+      const channelId = video.snippet.channelId;
+      const title = video.snippet.title;
+      const tags = video.snippet.tags || [];
+      
+      // Extract keywords from title for search
+      const titleWords = title.split(' ').filter(word => 
+        word.length > 3 && 
+        !['video', 'watch', 'subscribe', 'like', 'share'].includes(word.toLowerCase())
+      );
+
+      // Combine tags and title keywords for search
+      const searchTerms = [...tags.slice(0, 3), ...titleWords.slice(0, 3)];
+      const searchQuery = searchTerms.join(' ');
+
+      // Search for related videos
+      const searchResponse = await axios.get(`${this.baseUrl}/search`, {
+        params: {
+          part: 'snippet',
+          q: searchQuery,
+          type: 'video',
+          maxResults: maxResults + 5, // Get extra to filter out the original
+          order: 'relevance',
+          key: this.apiKey
+        }
+      });
+
+      const relatedVideos = searchResponse.data.items
+        .filter(item => item.id.videoId !== videoId) // Remove the original video
+        .slice(0, maxResults)
+        .map(item => ({
+          videoId: item.id.videoId,
+          title: item.snippet.title,
+          description: item.snippet.description,
+          channelTitle: item.snippet.channelTitle,
+          channelId: item.snippet.channelId,
+          publishedAt: item.snippet.publishedAt,
+          thumbnails: item.snippet.thumbnails,
+          url: `https://www.youtube.com/watch?v=${item.id.videoId}`
+        }));
+
+      logger.info('Found recommended videos', { 
+        originalVideoId: videoId,
+        recommendedCount: relatedVideos.length,
+        searchQuery
+      });
+
+      return relatedVideos;
+
+    } catch (error) {
+      logger.logError(error, { videoId, maxResults });
+      throw error;
+    }
+  }
+
 }
 
 export default new YouTubeService();

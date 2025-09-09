@@ -222,6 +222,31 @@ class YouTubeController {
       }
     });
   });
+
+  // Get recommended videos based on a video ID
+  getRecommendedVideos = asyncHandler(async (req, res) => {
+    const { videoId, maxResults = 10 } = req.query;
+    
+    if (!videoId) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'videoId parameter is required'
+      });
+    }
+    
+    logger.info('Getting recommended videos', { videoId, maxResults });
+    
+    const recommendedVideos = await YouTubeService.getRecommendedVideos(videoId, parseInt(maxResults));
+    
+    res.status(200).json({
+      status: 'success',
+      data: { 
+        recommendedVideos,
+        count: recommendedVideos.length,
+        baseVideoId: videoId
+      }
+    });
+  });
 }
 
 export default new YouTubeController();

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Authentication Successful</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            text-align: center;
+            padding: 2rem;
+        }
+        h1 {
+            margin-bottom: 1rem;
+        }
+        p {
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>✓ Authentication Successful!</h1>
+        <p>This window will close automatically...</p>
+    </div>
+    <script>
+        console.log('Auth success page loaded');
+        console.log('Window opener exists:', !!window.opener);
+        
+        // Send message to parent window
+        if (window.opener) {
+            console.log('Sending auth-success message to parent');
+            // Try multiple ways to send the message
+            window.opener.postMessage({ type: 'auth-success' }, 'http://localhost:5173');
+            window.opener.postMessage('auth-success', 'http://localhost:5173');
+            window.opener.postMessage({ type: 'auth-success' }, '*');
+            
+            // Close window after a short delay
+            setTimeout(() => {
+                console.log('Closing popup window');
+                window.close();
+            }, 2000);
+        } else {
+            console.log('No opener, trying to close anyway');
+            setTimeout(() => {
+                window.close();
+            }, 2000);
+        }
+        
+        // Also try to close if parent sends close message
+        window.addEventListener('message', (event) => {
+            console.log('Received message in popup:', event.data);
+            if (event.data === 'close-popup') {
+                window.close();
+            }
+        });
+    </script>
+</body>
+</html>
