@@ -23,11 +23,15 @@ class YouTubeVideoModel {
           -- Store comments as JSON
           comments JSON,
           
+          -- Track if video has been watched/filtered
+          watched BOOLEAN DEFAULT FALSE,
+          
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
           
           INDEX idx_session (session_id),
-          INDEX idx_search_tag (search_tag)
+          INDEX idx_search_tag (search_tag),
+          INDEX idx_watched (watched)
         )
       `);
       
@@ -112,10 +116,8 @@ class YouTubeVideoModel {
     const conn = getConnection();
     
     try {
-      // Convert embedding array to vector string format [x,y,z,...]
       const vectorString = `[${embedding.join(',')}]`;
       
-      // Use TiDB's native vector similarity search with proper CAST syntax
       const result = await conn.execute(`
         SELECT 
           video_id,
@@ -127,7 +129,8 @@ class YouTubeVideoModel {
           comments,
           (1 - VEC_COSINE_DISTANCE(content_embedding, ?)) as similarity
         FROM youtube_videos
-        WHERE content_embedding IS NOT NULL
+        WHERE content_embedding IS NOT NULL 
+          AND watched = FALSE
         HAVING similarity >= ?
         ORDER BY similarity DESC
         LIMIT ?
@@ -138,7 +141,6 @@ class YouTubeVideoModel {
         hasRows: Array.isArray(result) ? result.length > 0 : !!result?.rows 
       });
       
-      // Handle both array and object with rows property
       return Array.isArray(result) ? result : (result?.rows || []);
     } catch (error) {
       logger.logError(error, { context: 'FIND_SIMILAR_VIDEOS' });
@@ -234,6 +236,52 @@ class YouTubeVideoModel {
       return true;
     } catch (error) {
       logger.logError(error, { videoId });
+      throw error;
+    }
+  }
+
+  static async markAsWatched(videoIds) {
+    const conn = getConnection();
+    
+    try {
+      if (!Array.isArray(videoIds) || videoIds.length === 0) {
+        return false;
+      }
+
+      const placeholders = videoIds.map(() => '?').join(',');
+      
+      await conn.execute(`
+        UPDATE youtube_videos 
+        SET watched = TRUE, updated_at = CURRENT_TIMESTAMP
+        WHERE video_id IN (${placeholders})
+      `, videoIds);
+      
+      logger.info('Videos marked as watched', { 
+        videoIds, 
+        count: videoIds.length 
+      });
+      
+      return true;
+    } catch (error) {
+      logger.logError(error, { videoIds });
+      throw error;
+    }
+  }
+
+  static async getWatchedVideos(limit = 50) {
+    const conn = getConnection();
+    
+    try {
+      const result = await conn.execute(`
+        SELECT * FROM youtube_videos 
+        WHERE watched = TRUE
+        ORDER BY updated_at DESC
+        LIMIT ?
+      `, [limit]);
+      
+      return Array.isArray(result) ? result : (result?.rows || []);
+    } catch (error) {
+      logger.logError(error, { context: 'GET_WATCHED_VIDEOS' });
       throw error;
     }
   }

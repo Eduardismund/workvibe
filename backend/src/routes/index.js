@@ -98,6 +98,11 @@ router.get('/youtube/comments',
   YouTubeController.getVideoComments
 );
 
+// Get recommended videos for a video ID
+router.get('/youtube/recommended',
+  YouTubeController.getRecommendedVideos
+);
+
 // Test endpoint for YouTube to TiDB storage
 router.post('/test/youtube-tidb',
   YouTubeController.testYouTubeTiDBStorage
@@ -149,12 +154,18 @@ router.post('/emotion/analyze',
 );
 
 
-// Context Analysis Workflow - Combines emotion, calendar, and description
-router.post('/agent/context/analyze',
+
+// Video Ingestion Workflow - Analyze and store videos
+router.post('/agent/ingest',
   imageUpload.single('selfie'),
-  AgentController.analyzeContext
+  AgentController.ingestVideos
 );
 
+// Video Filtering Workflow - Get filtered videos based on context
+router.post('/agent/filter',
+  imageUpload.single('selfie'),
+  AgentController.filterVideos
+);
 
 // Ingestion routes
 router.post('/ingest/curate',
@@ -170,13 +181,13 @@ router.get('/docs', (req, res) => {
   res.status(200).json({
     status: 'success',
     data: {
-      title: 'TiDB AgentX MindFlow API',
+      title: 'TiDB AgentX API',
       version: '1.0.0',
-      description: 'Advanced Multi-step AI Agent with TiDB and MCP',
+      description: 'YouTube video recommendation system with emotion analysis',
       endpoints: {
         agent: {
-          'POST /api/agent/context/analyze': 'Context analysis combining emotion, calendar, and description (multipart: selfie + description)',
-          'GET /api/agent/health': 'Agent system health check'
+          'POST /api/agent/ingest': 'Analyze context and store videos in database (multipart: selfie + description)',
+          'POST /api/agent/filter': 'Filter videos based on context analysis (multipart: selfie + description)'
         },
         youtube: {
           'GET /api/youtube/metadata': 'Get video metadata (query: videoUrl)',

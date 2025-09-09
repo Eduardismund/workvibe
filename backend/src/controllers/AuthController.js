@@ -1,4 +1,5 @@
 import { ConfidentialClientApplication } from '@azure/msal-node';
+import path from 'path';
 import config from '../config/index.js';
 import logger from '../utils/logger.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
@@ -42,7 +43,7 @@ class AuthController {
     const { code } = req.query;
     
     if (!code) {
-      return res.redirect('/api/teams/today?error=no_code');
+      return res.redirect('http://localhost:5173/?error=no_code');
     }
 
     try {
@@ -73,11 +74,12 @@ class AuthController {
         logger.warn('Failed to fetch and cache meetings on login', { error: cacheError.message });
       }
       
-      res.redirect('/api/teams/today');
+      // Serve success page that will close the popup
+      res.sendFile(path.join(process.cwd(), 'public', 'auth-success.html'));
       
     } catch (error) {
       logger.error('Auth failed', error);
-      res.redirect('/api/teams/today?error=auth_failed');
+      res.redirect('http://localhost:5173/?error=auth_failed');
     }
   });
 

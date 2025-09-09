@@ -1,58 +1,32 @@
 {
-  "name": "tidb-agentx-mindflow",
+  "name": "tidb-agentx-project",
   "version": "1.0.0",
-  "description": "Advanced Multi-step AI Agent for Content Analysis using MCP and TiDB",
-  "type": "module",
-  "main": "src/app.js",
+  "description": "Full-stack application with emotion-based YouTube video recommendations",
+  "private": true,
   "scripts": {
-    "start": "node src/app.js",
-    "dev": "node --watch src/app.js",
-    "setup": "node src/config/database.js",
-    "mcp": "node src/mcp/server.js",
-    "test": "node --test test/**/*.test.js",
-    "lint": "eslint src/",
-    "build": "echo 'Build completed'"
-  },
-  "dependencies": {
-    "@azure/msal-node": "^3.7.0",
-    "@microsoft/microsoft-graph-client": "^3.0.7",
-    "@modelcontextprotocol/sdk": "^0.6.0",
-    "@tidbcloud/serverless": "^0.2.0",
-    "aws-sdk": "^2.1692.0",
-    "axios": "^1.7.9",
-    "cheerio": "^1.0.0",
-    "compression": "^1.7.5",
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
-    "express": "^4.21.2",
-    "express-rate-limit": "^7.4.1",
-    "express-session": "^1.18.2",
-    "express-validator": "^7.2.0",
-    "form-data": "^4.0.4",
-    "helmet": "^8.0.0",
-    "isomorphic-fetch": "^3.0.0",
-    "joi": "^17.13.3",
-    "morgan": "^1.10.0",
-    "multer": "^1.4.5-lts.1",
-    "openai": "^4.75.0",
-    "pdf-parse": "^1.1.1",
-    "uuid": "^11.0.4",
-    "winston": "^3.15.0"
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "start": "npm run start:backend",
+    "start:backend": "cd backend && npm start",
+    "build:frontend": "cd frontend && npm run build",
+    "setup": "cd backend && npm run setup"
   },
   "devDependencies": {
-    "eslint": "^9.17.0",
-    "nodemon": "^3.1.9"
+    "concurrently": "^8.2.0"
   },
-  "engines": {
-    "node": ">=18.0.0"
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourusername/tidb-agentx-project.git"
   },
   "keywords": [
     "tidb",
-    "mcp",
-    "ai-agent",
-    "vector-search",
-    "hackathon",
-    "agentic-ai"
+    "youtube",
+    "emotion-analysis",
+    "teams",
+    "react",
+    "nodejs"
   ],
   "author": "Eduard",
   "license": "MIT"
