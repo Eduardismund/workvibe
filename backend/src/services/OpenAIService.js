@@ -68,34 +68,6 @@ class OpenAIService {
     }
   }
 
-  async generateTags(content, maxTags = 10) {
-    const systemMessage = {
-      role: 'system',
-      content: 'Generate relevant tags for content classification. Return only a JSON array of strings.'
-    };
-    
-    const userMessage = {
-      role: 'user',
-      content: `Generate ${maxTags} relevant tags for this content:
-
-${content.substring(0, 2000)}
-
-Return format: ["tag1", "tag2", "tag3", ...]`
-    };
-    
-    try {
-      const response = await this.chat([systemMessage, userMessage], {
-        temperature: 0.3,
-        max_tokens: 200
-      });
-      
-      return JSON.parse(response.content);
-    } catch (error) {
-      logger.logError(error, { content: content.substring(0, 100) });
-      return [];
-    }
-  }
-
   /**
    * Generate YouTube search tags and context description from user context
    * @param {Object} context - Context object containing emotions, calendar, description
@@ -197,6 +169,68 @@ Return format: ["tag1", "tag2", "tag3", ...]`
         error: error.message
       });
       throw error;
+    }
+  }
+
+  /**
+   * Generate meme use cases and text box completion guidelines
+   * @param {Object} memeInfo - Meme template information
+   * @returns {Promise<Object>} Object with useCases array and boxGuidelines object
+   */
+  async generateMemeUseCases(memeInfo) {
+    const { name,  boxCount } = memeInfo;
+    
+    const prompt = `Analyze this popular meme template and generate abstract usage patterns and reasoning:
+
+Meme Name: ${name}
+Box Count: ${boxCount || 'Unknown'}
+
+Generate:
+1. USE CASE: describe the general scenario where this meme applies.
+2. BOX GUIDELINES: General reasoning about how the ${boxCount} text boxes should relate to each other conceptually and how they should be filled.
+
+Format as JSON:
+{
+  "useCases": "Abstract description of emotional/situational pattern",
+  "boxGuidelines": "Description of the relationship between boxes nad how they should be filled to be logically accurate"
+}
+
+Provide only the JSON response.`;
+
+    try {
+      const response = await this.chat([
+        {
+          role: 'user',
+          content: prompt
+        }
+      ], {
+        temperature: 0.7,
+        max_tokens: 800
+      });
+
+      // Clean the response content by removing markdown code blocks
+      let cleanContent = response.content.trim();
+      if (cleanContent.startsWith('```json')) {
+        cleanContent = cleanContent.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+      } else if (cleanContent.startsWith('```')) {
+        cleanContent = cleanContent.replace(/^```\s*/, '').replace(/\s*```$/, '');
+      }
+
+      const result = JSON.parse(cleanContent);
+      
+      logger.info('Generated meme use cases', {
+        memeName: name,
+        hasUseCases: !!result.useCases,
+        hasBoxGuidelines: !!result.boxGuidelines
+      });
+      
+      return result;
+    } catch (error) {
+      logger.logError(error, { memeName: name });
+      return {
+        useCases: [],
+        boxGuidelines: {}
+      };
     }
   }
 

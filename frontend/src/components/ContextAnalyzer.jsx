@@ -9,17 +9,30 @@ function ContextAnalyzer({
   likedVideos = [],
   onLikedVideosChange,
   filteredVideos: externalFilteredVideos,
-  ingestionResult: externalIngestionResult 
+  ingestionResult: externalIngestionResult,
+  onSelfieChange,
+  onDescriptionChange,
+  selfieFile: externalSelfieFile,
+  description: externalDescription,
+  lastFilterHash: externalFilterHash,
+  onFilterHashChange,
+  lastIngestionHash: externalIngestionHash,
+  onIngestionHashChange,
+  onStatsRefresh
 }) {
-  const [photo, setPhoto] = useState(null);
-  const [description, setDescription] = useState('');
+  const [photo, setPhoto] = useState(externalSelfieFile || null);
+  const [description, setDescription] = useState(externalDescription || '');
   const [email, setEmail] = useState('');
   const [ingestionResult, setIngestionResult] = useState(externalIngestionResult || null);
   const [filteredVideos, setFilteredVideos] = useState(externalFilteredVideos || null);
   const [isIngesting, setIsIngesting] = useState(false);
   const [isFiltering, setIsFiltering] = useState(false);
   const [error, setError] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(externalSelfieFile ? URL.createObjectURL(externalSelfieFile) : null);
+  const [lastIngestionHash, setLastIngestionHash] = useState(externalIngestionHash || null);
+  const [lastFilterHash, setLastFilterHash] = useState(externalFilterHash || null);
+  const [usingCachedIngestion, setUsingCachedIngestion] = useState(false);
+  const [usingCachedFilter, setUsingCachedFilter] = useState(false);
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
 
   // Update local state when external props change
@@ -36,11 +49,54 @@ function ContextAnalyzer({
     }
   }, [externalIngestionResult]);
 
+  // Sync external hash props
+  useEffect(() => {
+    if (externalFilterHash !== undefined && externalFilterHash !== lastFilterHash) {
+      setLastFilterHash(externalFilterHash);
+    }
+  }, [externalFilterHash]);
+
+  useEffect(() => {
+    if (externalIngestionHash !== undefined && externalIngestionHash !== lastIngestionHash) {
+      setLastIngestionHash(externalIngestionHash);
+    }
+  }, [externalIngestionHash]);
+
+  // Sync external selfie and description props
+  useEffect(() => {
+    if (externalSelfieFile && externalSelfieFile !== photo) {
+      setPhoto(externalSelfieFile);
+      setPreviewUrl(URL.createObjectURL(externalSelfieFile));
+    }
+  }, [externalSelfieFile]);
+
+  useEffect(() => {
+    if (externalDescription !== undefined && externalDescription !== description) {
+      setDescription(externalDescription);
+    }
+  }, [externalDescription]);
+
+  // Helper to create hash from request data
+  const createRequestHash = (photoFile, desc, emailVal) => {
+    return `${photoFile?.name || ''}_${photoFile?.size || ''}_${desc}_${emailVal || ''}`;
+  };
+
   const handlePhotoChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       setPhoto(file);
       setPreviewUrl(URL.createObjectURL(file));
+      if (onSelfieChange) {
+        onSelfieChange(file);
+      }
+    }
+  };
+
+  const handleDescriptionChange = (e) => {
+    const value = e.target.value;
+    setDescription(value);
+    if (onDescriptionChange) {
+      onDescriptionChange(value);
     }
   };
 
@@ -51,16 +107,23 @@ function ContextAnalyzer({
       return;
     }
 
+    // Check if we already have cached results for the same inputs
+    const currentHash = createRequestHash(photo, description, email);
+    if (currentHash === lastIngestionHash && ingestionResult) {
+      console.log('Using cached ingestion results');
+      setUsingCachedIngestion(true);
+      setTimeout(() => setUsingCachedIngestion(false), 2000);
+      return;
+    }
+
     setIsIngesting(true);
     setError(null);
-    setIngestionResult(null);
+    setUsingCachedIngestion(false);
 
     try {
       const formData = new FormData();
       formData.append('selfie', photo);
       formData.append('description', description);
-      formData.append('likedVideoIds', JSON.stringify(likedVideos.map(v => v.video_id || v.videoId)));
-
 
       if (email.trim()) {
         formData.append('email', email.trim());
@@ -76,8 +139,16 @@ function ContextAnalyzer({
       
       if (response.data.data) {
         setIngestionResult(response.data.data);
+        setLastIngestionHash(currentHash);
+        if (onIngestionHashChange) {
+          onIngestionHashChange(currentHash);
+        }
         if (onIngestionResult) {
           onIngestionResult(response.data.data);
+        }
+        // Refresh content stats after successful ingestion
+        if (onStatsRefresh) {
+          onStatsRefresh();
         }
       }
     } catch (error) {
@@ -95,9 +166,21 @@ function ContextAnalyzer({
       return;
     }
 
+    // Check if we already have cached results for the same inputs
+    const currentHash = createRequestHash(photo, description, email);
+    if (currentHash === lastFilterHash && filteredVideos) {
+      console.log('Using cached filter results');
+      setUsingCachedFilter(true);
+      setTimeout(() => setUsingCachedFilter(false), 2000);
+      if (onFilteredVideos) {
+        onFilteredVideos(filteredVideos);
+      }
+      return;
+    }
+
     setIsFiltering(true);
     setError(null);
-    setFilteredVideos(null);
+    setUsingCachedFilter(false);
     setCurrentVideoIndex(0);
 
     try {
@@ -120,6 +203,10 @@ function ContextAnalyzer({
       
       if (response.data.data) {
         setFilteredVideos(response.data.data);
+        setLastFilterHash(currentHash);
+        if (onFilterHashChange) {
+          onFilterHashChange(currentHash);
+        }
         setCurrentVideoIndex(0);
         
         if (onFilteredVideos) {
@@ -209,46 +296,43 @@ function ContextAnalyzer({
       {showInputs && (
         <>
           <div className="analyzer-inputs">
-        <div className="input-group">
-          <label htmlFor="photo-upload">Photo (Required):</label>
-          <input
-            type="file"
-            id="photo-upload"
-            accept="image/*"
-            onChange={handlePhotoChange}
-            className="file-input"
-          />
-          <label htmlFor="photo-upload" className="file-label">
-            {photo ? 'Change Photo' : 'Choose Photo'}
-          </label>
-          {previewUrl && (
-            <div className="photo-preview">
-              <img src={previewUrl} alt="Preview" className="preview-image" />
-            </div>
-          )}
+        <div className={`input-group photo-upload-group ${photo ? 'has-photo' : ''}`}>
+          <label><i className="fas fa-portrait"></i> Upload Selfie</label>
+          <div className={`photo-upload-simple ${photo ? 'has-photo' : ''}`}>
+            <input
+              type="file"
+              id="photo-upload"
+              accept="image/*"
+              onChange={handlePhotoChange}
+              className="file-input"
+              style={{ display: 'none' }}
+            />
+            {previewUrl ? (
+              <div className="photo-preview-simple">
+                <label htmlFor="photo-upload" className="preview-image-label" title="Click to change photo">
+                  <img src={previewUrl} alt="Preview" className="preview-image" />
+                </label>
+              </div>
+            ) : (
+              <label htmlFor="photo-upload" className="upload-button-simple">
+                <i className="fas fa-upload"></i>
+                <span>Choose Photo</span>
+              </label>
+            )}
+          </div>
         </div>
 
         <div className="input-group">
-          <label htmlFor="description">Description (Required):</label>
+          <label htmlFor="description"><i className="fas fa-pen-to-square"></i> Describe Your Current Mood</label>
           <textarea
             id="description"
-            placeholder="Describe your current context or situation..."
+            placeholder="Tell us how you're feeling today... What's your current vibe? What kind of energy do you need?"
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows="4"
+            onChange={handleDescriptionChange}
+            rows="5"
           />
         </div>
 
-        <div className="input-group">
-          <label htmlFor="email">Email (Optional):</label>
-          <input
-            type="email"
-            id="email"
-            placeholder="your.email@example.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-        </div>
       </div>
 
           <div className="analyzer-actions">
@@ -257,7 +341,12 @@ function ContextAnalyzer({
           disabled={isIngesting}
           className="ingest-button"
         >
-          {isIngesting ? 'Ingesting Videos...' : '1. Ingest Videos'}
+          {isIngesting ? (
+            <><i className="fas fa-circle-notch fa-spin"></i> Ingesting...</>
+          ) : (
+            <><i className="fas fa-server"></i> Ingest Videos</>
+          )}
+          {usingCachedIngestion && <i className="fas fa-check" style={{ marginLeft: '8px' }}></i>}
         </button>
         
         <button 
@@ -265,11 +354,24 @@ function ContextAnalyzer({
           disabled={isFiltering}
           className="filter-button"
         >
-          {isFiltering ? 'Filtering...' : '2. Get Filtered Videos'}
+          {isFiltering ? (
+            <><i className="fas fa-circle-notch fa-spin"></i> Filtering...</>
+          ) : (
+            <><i className="fas fa-sliders"></i> Filter Videos</>
+          )}
+          {usingCachedFilter && <i className="fas fa-check" style={{ marginLeft: '8px' }}></i>}
         </button>
 
           </div>
 
+          {ingestionResult && (
+            <div className="analysis-results compact" style={{ marginTop: '16px' }}>
+              <h4 style={{ color: '#28a745', marginBottom: '8px' }}>✅ Ingestion Complete</h4>
+              <p className="success">
+                Successfully stored {ingestionResult.analysis?.totalVideosStored || 0} videos in database
+              </p>
+            </div>
+          )}
 
           {error && (
         <div className="error-message">

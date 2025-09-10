@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
+import { createMeme } from '../utils/api';
 
-function VideoResults({ filteredVideos, ingestionResult, likedVideos = [], onLikedVideosChange }) {
+function VideoResults({ filteredVideos, ingestionResult, likedVideos = [], onLikedVideosChange, selfieFile, description, onMemeGenerated, onMemeError, onMemeGenerating }) {
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
+  const [generatingMeme, setGeneratingMeme] = useState(false);
 
   useEffect(() => {
     setCurrentVideoIndex(0);
@@ -64,6 +66,31 @@ function VideoResults({ filteredVideos, ingestionResult, likedVideos = [], onLik
     return likedVideos.some(v => (v.video_id || v.videoId) === videoId);
   };
 
+  const handleGenerateMeme = async (video) => {
+    if (!selfieFile || !description) {
+      if (onMemeError) onMemeError('Selfie and description are required to generate memes');
+      return;
+    }
+
+    setGeneratingMeme(true);
+    if (onMemeGenerating) onMemeGenerating(true);
+    if (onMemeError) onMemeError(null);
+    if (onMemeGenerated) onMemeGenerated(null);
+
+    try {
+      const videoId = video.video_id || video.videoId;
+      const result = await createMeme(selfieFile, description, videoId);
+      
+      if (onMemeGenerated) onMemeGenerated(result.data);
+    } catch (error) {
+      console.error('Error generating meme:', error);
+      if (onMemeError) onMemeError(error.response?.data?.message || 'Failed to generate meme');
+    } finally {
+      setGeneratingMeme(false);
+      if (onMemeGenerating) onMemeGenerating(false);
+    }
+  };
+
   if (!filteredVideos && !ingestionResult) {
     return (
       <div className="empty-results">
@@ -74,15 +101,6 @@ function VideoResults({ filteredVideos, ingestionResult, likedVideos = [], onLik
 
   return (
     <div className="video-results">
-      {ingestionResult && (
-        <div className="analysis-results compact">
-          <h4>Ingestion Complete</h4>
-          <p className="success">
-            {ingestionResult.analysis?.totalVideosStored || 0} videos stored
-          </p>
-        </div>
-      )}
-
       {filteredVideos && filteredVideos.filteredVideos?.length > 0 && (
         <div className="video-carousel">
           <div className="video-container">
@@ -99,13 +117,6 @@ function VideoResults({ filteredVideos, ingestionResult, likedVideos = [], onLik
           <div className="video-info">
             <div className="video-header">
               <h3>{currentVideo?.title}</h3>
-              <button 
-                onClick={() => handleLikeVideo(currentVideo)}
-                className={`heart-button ${isVideoLiked(currentVideo) ? 'liked' : ''}`}
-                title={isVideoLiked(currentVideo) ? 'Unlike video' : 'Like video'}
-              >
-                ❤️
-              </button>
             </div>
             <div className="video-meta">
               <span className="channel">{currentVideo?.channel_title || currentVideo?.channelTitle}</span>
@@ -140,9 +151,25 @@ function VideoResults({ filteredVideos, ingestionResult, likedVideos = [], onLik
             </button>
           </div>
 
-          <div className="keyboard-hint">
-            Use ↑↓ arrow keys to navigate
+          <div className="video-actions-below">
+            <button 
+              onClick={() => handleLikeVideo(currentVideo)}
+              className={`like-button-new ${isVideoLiked(currentVideo) ? 'liked' : ''}`}
+              title={isVideoLiked(currentVideo) ? 'Unlike video' : 'Like video'}
+            >
+              <i className="fas fa-heart"></i> {isVideoLiked(currentVideo) ? 'Liked' : 'Like'}
+            </button>
+            <button 
+              onClick={() => handleGenerateMeme(currentVideo)}
+              className="meme-button-new"
+              disabled={generatingMeme}
+              title="Generate meme based on this video"
+            >
+              <i className={generatingMeme ? 'fas fa-circle-notch fa-spin' : 'fas fa-magic'}></i> 
+              {generatingMeme ? 'Generating...' : 'Generate Meme'}
+            </button>
           </div>
+
         </div>
       )}
     </div>

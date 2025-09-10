@@ -119,19 +119,17 @@ function TeamsAuth({ onAuthSuccess }) {
 
   return (
     <div className="teams-auth">
-      {!isAuthenticated ? (
-        <button 
-          onClick={handleAuthenticate} 
-          disabled={isAuthenticating}
-          className="auth-button"
-        >
-          {isAuthenticating ? 'Authenticating...' : 'Authenticate with Teams'}
-        </button>
-      ) : (
-        <div className="auth-success">
-          <span className="success">✓ Authenticated with Microsoft Teams</span>
-        </div>
-      )}
+      <button 
+        onClick={handleAuthenticate} 
+        disabled={isAuthenticating}
+        className="auth-button"
+      >
+        {isAuthenticating ? (
+          <><i className="fas fa-circle-notch fa-spin"></i> Authenticating...</>
+        ) : (
+          <><i className="fab fa-microsoft"></i> Authenticate with Teams</>
+        )}
+      </button>
     </div>
   );
 }

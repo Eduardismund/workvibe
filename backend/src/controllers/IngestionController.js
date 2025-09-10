@@ -57,6 +57,119 @@ class IngestionController {
       }
     });
   });
+
+  /**
+   * Reset watch history for all videos or specific video IDs
+   */
+  resetWatched = asyncHandler(async (req, res) => {
+    const { videoIds } = req.body;
+    
+    logger.info('Resetting watched status', { 
+      hasVideoIds: !!videoIds, 
+      count: videoIds?.length 
+    });
+
+    let query;
+    let params = [];
+    let affectedRows;
+
+    if (videoIds && videoIds.length > 0) {
+      const placeholders = videoIds.map(() => '?').join(',');
+      query = `
+        UPDATE youtube_videos 
+        SET watched = 0 
+        WHERE video_id IN (${placeholders}) AND watched = 1
+      `;
+      params = videoIds;
+      
+      const result = await CurationService.conn.execute(query, params);
+      // TiDB returns affectedRows in different ways depending on the driver
+      affectedRows = result.affectedRows || result.rowsAffected || result.changedRows || 0;
+      
+      logger.info('Update result structure:', { 
+        hasAffectedRows: 'affectedRows' in result,
+        hasRowsAffected: 'rowsAffected' in result,
+        hasChangedRows: 'changedRows' in result,
+        resultKeys: Object.keys(result)
+      });
+      
+      logger.info(`Reset watched status for specific videos`, { 
+        requestedCount: videoIds.length,
+        affectedRows 
+      });
+    } else {
+      // First, count how many videos are currently watched
+      const countQuery = `SELECT COUNT(*) as total FROM youtube_videos WHERE watched = 1`;
+      const countResult = await CurationService.conn.execute(countQuery);
+      const countRows = countResult.rows || countResult;
+      const watchedCount = countRows[0]?.total || 0;
+      
+      logger.info(`Found ${watchedCount} watched videos to reset`);
+      
+      // Reset all watched videos
+      query = `
+        UPDATE youtube_videos 
+        SET watched = 0 
+        WHERE watched = 1
+      `;
+      
+      const result = await CurationService.conn.execute(query);
+      // TiDB returns affectedRows in different ways depending on the driver
+      affectedRows = result.affectedRows || result.rowsAffected || result.changedRows || watchedCount || 0;
+      
+      logger.info('Update result structure (reset all):', { 
+        hasAffectedRows: 'affectedRows' in result,
+        hasRowsAffected: 'rowsAffected' in result,
+        hasChangedRows: 'changedRows' in result,
+        resultKeys: Object.keys(result),
+        watchedCountBefore: watchedCount,
+        reportedAffectedRows: affectedRows
+      });
+      
+      logger.info(`Reset watched status for all videos`, { 
+        watchedCountBefore: watchedCount,
+        affectedRows 
+      });
+    }
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        videosReset: affectedRows,
+        videoIds: videoIds || null,
+        resetAll: !videoIds || videoIds.length === 0
+      }
+    });
+  });
+
+  /**
+   * Get content statistics - videos and memes count
+   */
+  getContentStats = asyncHandler(async (req, res) => {
+    logger.info('Fetching content statistics');
+
+    // Get videos count
+    const videosResult = await CurationService.conn.execute(
+      'SELECT COUNT(*) as total FROM youtube_videos'
+    );
+    const videosRows = videosResult.rows || videosResult;
+    const totalVideos = videosRows[0]?.total || 0;
+
+    // Get memes count
+    const memesResult = await CurationService.conn.execute(
+      'SELECT COUNT(*) as total FROM meme_templates'
+    );
+    const memesRows = memesResult.rows || memesResult;
+    const totalMemes = memesRows[0]?.total || 0;
+    
+    res.status(200).json({
+      status: 'success',
+      data: {
+        videos: totalVideos,
+        memes: totalMemes
+      }
+    });
+  });
 }
 
 export default new IngestionController();

@@ -70,6 +70,80 @@ class YouTubeService {
   }
 
   /**
+   * Get video metadata (title, description, etc.)
+   */
+  async getVideoMetadata(videoId) {
+    const startTime = Date.now();
+    
+    try {
+      const response = await axios.get(`${this.baseUrl}/videos`, {
+        params: {
+          part: 'snippet,statistics',
+          id: videoId,
+          key: this.apiKey
+        }
+      });
+
+      const duration = Date.now() - startTime;
+      logger.logApiCall('YouTube', 'videos', duration, 200);
+
+      if (!response.data.items || response.data.items.length === 0) {
+        throw new Error('Video not found');
+      }
+
+      const video = response.data.items[0];
+      return {
+        videoId: video.id,
+        title: video.snippet.title,
+        description: video.snippet.description,
+        channelTitle: video.snippet.channelTitle,
+        publishedAt: video.snippet.publishedAt,
+        viewCount: video.statistics.viewCount,
+        likeCount: video.statistics.likeCount,
+        commentCount: video.statistics.commentCount
+      };
+      
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      logger.logApiCall('YouTube', 'videos', duration, error.response?.status || 500);
+      logger.logError(error, { videoId });
+      throw error;
+    }
+  }
+
+
+  /**
+   * Get video metadata (title, description, etc.)
+   */
+  async getTotalVideosInDb() {
+    try {
+
+
+      if (!response.data.items || response.data.items.length === 0) {
+        throw new Error('Video not found');
+      }
+
+      const video = response.data.items[0];
+      return {
+        videoId: video.id,
+        title: video.snippet.title,
+        description: video.snippet.description,
+        channelTitle: video.snippet.channelTitle,
+        publishedAt: video.snippet.publishedAt,
+        viewCount: video.statistics.viewCount,
+        likeCount: video.statistics.likeCount,
+        commentCount: video.statistics.commentCount
+      };
+
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      logger.logApiCall('YouTube', 'videos', duration, error.response?.status || 500);
+      logger.logError(error, { videoId });
+      throw error;
+    }
+  }
+
+  /**
    * Get top comments from a video
    */
   async getVideoComments(videoId, maxResults = 5) {

@@ -179,122 +179,6 @@ class AgentOrchestrator {
     }
   }
 
-  async executeIngestionWorkflowWithRecommendations(input) {
-    const { likedVideoIds, selfieBuffer, description, userEmail } = input;
-    const sessionId = `recommend-${Date.now()}`;
-    this.currentSession = sessionId;
-
-    try {
-      logger.info('Starting recommendations ingestion workflow', { 
-        sessionId,
-        likedCount: likedVideoIds.length 
-      });
-
-      const YouTubeService = (await import('./YouTubeService.js')).default;
-      const OpenAIServiceEmbed = (await import('./OpenAIService.js')).default;
-      const recommendedVideos = {};
-      let totalVideosStored = 0;
-
-      // Get recommended videos for each liked video
-      for (const videoId of likedVideoIds) {
-        try {
-          logger.info('Getting recommendations for video', { videoId });
-          const videos = await YouTubeService.getRecommendedVideos(videoId, 10);
-          recommendedVideos[videoId] = videos;
-
-          for (const video of videos) {
-            try {
-              let comments = [];
-              try {
-                comments = await YouTubeService.getVideoComments(video.videoId, 5);
-              } catch (commentError) {
-                logger.info('Could not fetch comments', { videoId: video.videoId });
-              }
-
-              let embedding = null;
-              try {
-                embedding = await OpenAIServiceEmbed.generateVideoEmbedding(video, comments);
-              } catch (embedError) {
-                logger.warn('Failed to generate embedding for video', {
-                  videoId: video.videoId,
-                  error: embedError.message
-                });
-              }
-
-              await YouTubeVideoModel.upsert({
-                videoId: video.videoId,
-                title: video.title,
-                description: video.description,
-                channelTitle: video.channelTitle,
-                url: video.url,
-                searchTag: `recommended_from_${videoId}`,
-                sessionId: sessionId,
-                embedding: embedding,
-                comments: comments
-              });
-
-              totalVideosStored++;
-
-            } catch (storeError) {
-              logger.warn('Failed to store video', {
-                videoId: video.videoId,
-                error: storeError.message
-              });
-            }
-          }
-
-        } catch (error) {
-          logger.warn('Failed to get recommendations for video', { 
-            videoId, 
-            error: error.message 
-          });
-        }
-      }
-
-      // Also run emotion/calendar analysis for context
-      const EmotionService = (await import('./EmotionService.js')).default;
-      const emotionData = await EmotionService.analyzeEmotion(selfieBuffer, 'aws');
-
-      const TeamsService = (await import('./TeamsService.js')).default;
-      let calendarEvents = [];
-      if (userEmail) {
-        try {
-          calendarEvents = await TeamsService.getCachedMeetings(userEmail) || [];
-        } catch (error) {
-          logger.warn('Could not fetch calendar events', { error: error.message });
-        }
-      }
-
-      logger.info('Recommendations ingestion completed successfully', {
-        totalVideosStored,
-        sessionId,
-        basedOnVideos: likedVideoIds.length
-      });
-
-      return {
-        success: true,
-        sessionId: this.currentSession,
-        analysis: {
-          emotions: emotionData,
-          calendar: {
-            eventCount: calendarEvents.length
-          },
-          recommendedVideos: recommendedVideos,
-          totalVideosStored: totalVideosStored,
-          basedOnLikedVideos: likedVideoIds.length
-        }
-      };
-
-    } catch (error) {
-      logger.logError(error, {
-        context: 'RECOMMENDATIONS_INGESTION_WORKFLOW',
-        sessionId: this.currentSession
-      });
-
-      throw error;
-    }
-  }
-
 
   async executeFilteringWorkflow(input) {
     const { selfieBuffer, description, userEmail, userToken } = input;
@@ -365,6 +249,105 @@ class AgentOrchestrator {
 
     } catch (error) {
       logger.logError(error, { context: 'FILTERING_WORKFLOW', sessionId });
+      throw error;
+    }
+  }
+
+  async executeLikedVideosIngestion(input) {
+    const { likedVideoIds } = input;
+    const sessionId = `liked-ingest-${Date.now()}`;
+    this.currentSession = sessionId;
+
+    try {
+      logger.info('Starting liked videos ingestion workflow', { 
+        sessionId,
+        likedCount: likedVideoIds.length 
+      });
+
+      const YouTubeService = (await import('./YouTubeService.js')).default;
+      const OpenAIServiceEmbed = (await import('./OpenAIService.js')).default;
+      const recommendedVideos = {};
+      let totalVideosStored = 0;
+
+      // Get recommended videos for each liked video
+      for (const videoId of likedVideoIds) {
+        try {
+          logger.info('Getting recommendations for video', { videoId });
+          const videos = await YouTubeService.getRecommendedVideos(videoId, 10);
+          recommendedVideos[videoId] = videos;
+
+          for (const video of videos) {
+            try {
+              let comments = [];
+              try {
+                comments = await YouTubeService.getVideoComments(video.videoId, 5);
+              } catch (commentError) {
+                logger.info('Could not fetch comments', { videoId: video.videoId });
+              }
+
+              let embedding = null;
+              try {
+                embedding = await OpenAIServiceEmbed.generateVideoEmbedding(video, comments);
+              } catch (embedError) {
+                logger.warn('Failed to generate embedding for video', {
+                  videoId: video.videoId,
+                  error: embedError.message
+                });
+              }
+
+              await YouTubeVideoModel.upsert({
+                videoId: video.videoId,
+                title: video.title,
+                description: video.description,
+                channelTitle: video.channelTitle,
+                url: video.url,
+                searchTag: `recommended_from_${videoId}`,
+                sessionId: sessionId,
+                embedding: embedding,
+                comments: comments
+              });
+
+              totalVideosStored++;
+
+            } catch (storeError) {
+              logger.warn('Failed to store video', {
+                videoId: video.videoId,
+                error: storeError.message
+              });
+            }
+          }
+
+        } catch (error) {
+          logger.warn('Failed to get recommendations for video', { 
+            videoId, 
+            error: error.message 
+          });
+        }
+      }
+
+      logger.info('Liked videos ingestion completed successfully', {
+        totalVideosStored,
+        sessionId,
+        basedOnVideos: likedVideoIds.length
+      });
+
+      return {
+        success: true,
+        sessionId: this.currentSession,
+        data: {
+          recommendedVideos: recommendedVideos,
+          totalVideosStored: totalVideosStored,
+          videosAnalyzed: Object.values(recommendedVideos).flat().length,
+          basedOnLikedVideos: likedVideoIds.length
+        }
+      };
+
+    } catch (error) {
+      logger.logError(error, {
+        context: 'LIKED_VIDEOS_INGESTION_WORKFLOW',
+        sessionId: this.currentSession
+      });
+
       throw error;
     }
   }

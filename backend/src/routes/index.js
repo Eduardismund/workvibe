@@ -7,6 +7,7 @@ import TeamsController from '../controllers/TeamsController.js';
 import AuthController from '../controllers/AuthController.js';
 import EmotionController from '../controllers/EmotionController.js';
 import IngestionController from '../controllers/IngestionController.js';
+import MemeController from '../controllers/MemeController.js';
 import {
   sanitizeInput
 } from '../middleware/validation.js';
@@ -135,6 +136,7 @@ router.post('/teams/events/:eventId/message',
   TeamsController.sendEventMessage
 );
 
+
 router.get('/auth/login',
   AuthController.login
 );
@@ -167,6 +169,11 @@ router.post('/agent/filter',
   AgentController.filterVideos
 );
 
+// Liked Videos Ingestion - Find and store similar videos based on liked videos
+router.post('/agent/ingest-liked-videos',
+  AgentController.ingestLikedVideos
+);
+
 // Ingestion routes
 router.post('/ingest/curate',
   IngestionController.getCuratedFeed
@@ -174,6 +181,52 @@ router.post('/ingest/curate',
 
 router.get('/ingest/stats',
   IngestionController.getStats
+);
+
+router.get('/ingest/content-stats',
+  IngestionController.getContentStats
+);
+
+router.post('/ingest/reset-watched',
+  IngestionController.resetWatched
+);
+
+// Meme Template routes
+router.post('/memes/ingest',
+  MemeController.ingestMemes
+);
+
+router.post('/memes/create',
+  imageUpload.single('selfie'),
+  MemeController.createMemeFromUserData
+);
+
+router.get('/memes',
+  MemeController.getMemes
+);
+
+router.get('/memes/:id',
+  MemeController.getMemeById
+);
+
+router.get('/memes/search/name',
+  MemeController.searchMemesByName
+);
+
+router.post('/memes/similar',
+  MemeController.findSimilarMemes
+);
+
+router.get('/memes/missing/usecases',
+  MemeController.getMemesWithoutUseCases
+);
+
+router.get('/memes/missing/embedding',
+  MemeController.getMemesWithoutEmbedding
+);
+
+router.put('/memes/:id/usecases',
+  MemeController.updateMemeUseCases
 );
 
 // API documentation endpoint
