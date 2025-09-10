@@ -227,6 +227,8 @@ class TeamsService {
     }
   }
 
+
+
   /**
    * Calculate event duration in minutes
    */
@@ -301,8 +303,14 @@ class TeamsService {
 
       return result.map(row => ({
         subject: row.subject,
+        start: row.start_time,
+        end: row.end_time,
         duration: row.duration_minutes,
         bodyPreview: row.body_preview || '',
+        description: row.body_preview || '',
+        id: row.id,
+        meetingId: row.id,
+        organizer: row.user_email
       }));
     } catch (error) {
       logger.error('Failed to get cached meetings', { userEmail, error: error.message, stack: error.stack });

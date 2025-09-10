@@ -26,36 +26,21 @@ class AgentController {
       const userEmail = req.body.userEmail || req.session?.userPrincipalName || req.body.email || null;
       const userToken = req.session?.accessToken || null;
       
-      // Parse liked video IDs if provided
-      let likedVideoIds = [];
-      if (req.body.likedVideoIds) {
-        try {
-          likedVideoIds = JSON.parse(req.body.likedVideoIds);
-        } catch (e) {
-          logger.warn('Failed to parse likedVideoIds', { error: e.message });
-        }
-      }
-      
       const input = {
         selfieBuffer: req.file.buffer,
         description: req.body.description.trim(),
         userEmail,
-        userToken,
-        likedVideoIds
+        userToken
       };
       
       logger.info('Video ingestion workflow request', { 
         hasDescription: !!req.body.description,
         hasUserEmail: !!userEmail,
-        hasUserToken: !!userToken,
-        hasLikedVideos: likedVideoIds.length > 0,
-        likedCount: likedVideoIds.length
+        hasUserToken: !!userToken
       });
       
-      // Choose workflow based on whether there are liked videos
-      const result = likedVideoIds.length > 0 
-        ? await AgentOrchestrator.executeIngestionWorkflowWithRecommendations(input)
-        : await AgentOrchestrator.executeIngestionWorkflowWithUserInfo(input);
+      // Use the standard ingestion workflow
+      const result = await AgentOrchestrator.executeIngestionWorkflowWithUserInfo(input);
       
       res.status(200).json({
         status: 'success',
@@ -130,6 +115,53 @@ class AgentController {
       res.status(500).json({
         status: 'error',
         message: error.message || 'Failed to filter videos'
+      });
+    }
+  });
+
+  // Ingest videos based on liked videos only
+  ingestLikedVideos = asyncHandler(async (req, res) => {
+    const { likedVideoIds } = req.body;
+    
+    if (!likedVideoIds || !Array.isArray(likedVideoIds) || likedVideoIds.length === 0) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Please provide liked video IDs'
+      });
+    }
+    
+    try {
+      const userEmail = req.body.userEmail || req.session?.userPrincipalName || req.body.email || null;
+      const userToken = req.session?.accessToken || null;
+      
+      logger.info('Liked videos ingestion request', { 
+        likedVideoCount: likedVideoIds.length,
+        hasUserEmail: !!userEmail,
+        hasUserToken: !!userToken
+      });
+      
+      // Execute ingestion based on liked videos
+      const result = await AgentOrchestrator.executeLikedVideosIngestion({
+        likedVideoIds,
+        userEmail,
+        userToken
+      });
+      
+      res.status(200).json({
+        status: 'success',
+        success: true,
+        data: {
+          totalVideosStored: result.data.totalVideosStored,
+          videosAnalyzed: result.data.videosAnalyzed,
+          message: `Successfully ingested ${result.data.totalVideosStored} similar videos based on ${likedVideoIds.length} liked videos`
+        }
+      });
+      
+    } catch (error) {
+      logger.error('Liked videos ingestion failed', error);
+      res.status(500).json({
+        status: 'error',
+        message: error.message || 'Failed to ingest videos based on liked videos'
       });
     }
   });
