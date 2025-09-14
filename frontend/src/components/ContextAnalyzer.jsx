@@ -35,7 +35,6 @@ function ContextAnalyzer({
   const [usingCachedFilter, setUsingCachedFilter] = useState(false);
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
 
-  // Update local state when external props change
   useEffect(() => {
     if (externalFilteredVideos) {
       setFilteredVideos(externalFilteredVideos);
@@ -49,7 +48,6 @@ function ContextAnalyzer({
     }
   }, [externalIngestionResult]);
 
-  // Sync external hash props
   useEffect(() => {
     if (externalFilterHash !== undefined && externalFilterHash !== lastFilterHash) {
       setLastFilterHash(externalFilterHash);
@@ -62,7 +60,6 @@ function ContextAnalyzer({
     }
   }, [externalIngestionHash]);
 
-  // Sync external selfie and description props
   useEffect(() => {
     if (externalSelfieFile && externalSelfieFile !== photo) {
       setPhoto(externalSelfieFile);
@@ -76,7 +73,6 @@ function ContextAnalyzer({
     }
   }, [externalDescription]);
 
-  // Helper to create hash from request data
   const createRequestHash = (photoFile, desc, emailVal) => {
     return `${photoFile?.name || ''}_${photoFile?.size || ''}_${desc}_${emailVal || ''}`;
   };
@@ -100,14 +96,13 @@ function ContextAnalyzer({
     }
   };
 
-  // Ingest videos - analyze and store
   const handleIngestVideos = async () => {
     if (!photo || !description) {
       setError('Please provide both a photo and description for ingestion.');
       return;
     }
 
-    // Check if we already have cached results for the same inputs
+
     const currentHash = createRequestHash(photo, description, email);
     if (currentHash === lastIngestionHash && ingestionResult) {
       console.log('Using cached ingestion results');
@@ -146,7 +141,6 @@ function ContextAnalyzer({
         if (onIngestionResult) {
           onIngestionResult(response.data.data);
         }
-        // Refresh content stats after successful ingestion
         if (onStatsRefresh) {
           onStatsRefresh();
         }
@@ -159,14 +153,13 @@ function ContextAnalyzer({
     setIsIngesting(false);
   };
 
-  // Filter videos based on context
   const handleFilterVideos = async () => {
     if (!photo || !description) {
       setError('Please provide both a photo and description for filtering.');
       return;
     }
 
-    // Check if we already have cached results for the same inputs
+
     const currentHash = createRequestHash(photo, description, email);
     if (currentHash === lastFilterHash && filteredVideos) {
       console.log('Using cached filter results');
@@ -213,7 +206,6 @@ function ContextAnalyzer({
           onFilteredVideos(response.data.data);
         }
         
-        // Debug first video data
         if (response.data.data.filteredVideos?.length > 0) {
           console.log('First video:', response.data.data.filteredVideos[0]);
         }
@@ -226,7 +218,6 @@ function ContextAnalyzer({
     setIsFiltering(false);
   };
 
-  // Navigation functions for filtered videos
   const nextVideo = () => {
     if (filteredVideos?.filteredVideos && currentVideoIndex < filteredVideos.filteredVideos.length - 1) {
       setCurrentVideoIndex(currentVideoIndex + 1);
@@ -239,7 +230,6 @@ function ContextAnalyzer({
     }
   };
 
-  // Keyboard navigation
   useEffect(() => {
     const handleKeyPress = (e) => {
       if (!filteredVideos?.filteredVideos?.length) return;
@@ -257,19 +247,15 @@ function ContextAnalyzer({
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [currentVideoIndex, filteredVideos]);
 
-  // Get current video
   const currentVideo = filteredVideos?.filteredVideos?.[currentVideoIndex];
 
-  // Convert YouTube URL to embed URL
   const getEmbedUrl = (video) => {
     if (!video) return '';
     
-    // Handle both video_id (from database) and videoId (from API)
     const videoId = video.video_id || video.videoId || video.url?.split('v=')[1]?.split('&')[0];
     return videoId ? `https://www.youtube.com/embed/${videoId}` : '';
   };
 
-  // Handle liking a video
   const handleLikeVideo = (video) => {
     const videoId = video.video_id || video.videoId;
     if (!videoId) return;
@@ -284,7 +270,6 @@ function ContextAnalyzer({
     }
   };
 
-  // Check if current video is liked
   const isVideoLiked = (video) => {
     if (!video) return false;
     const videoId = video.video_id || video.videoId;
@@ -429,7 +414,6 @@ function ContextAnalyzer({
           <div className="analysis-content">
             {filteredVideos.filteredVideos && filteredVideos.filteredVideos.length > 0 ? (
               <div className="video-carousel">
-                {/* Current Video Display */}
                 <div className="video-container">
                   <iframe
                     src={getEmbedUrl(currentVideo)}
@@ -441,7 +425,6 @@ function ContextAnalyzer({
                   />
                 </div>
 
-                {/* Video Info */}
                 <div className="video-info">
                   <div className="video-header">
                     <h3>{currentVideo?.title}</h3>
@@ -464,7 +447,6 @@ function ContextAnalyzer({
                   <p className="video-description">{currentVideo?.description}</p>
                 </div>
 
-                {/* Navigation Controls */}
                 <div className="carousel-controls">
                   <button 
                     onClick={prevVideo} 

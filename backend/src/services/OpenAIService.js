@@ -20,12 +20,10 @@ class OpenAIService {
       });
       
       const duration = Date.now() - startTime;
-      logger.logApiCall('OpenAI', 'embeddings', duration, 200);
       
       return response.data[0].embedding;
     } catch (error) {
       const duration = Date.now() - startTime;
-      logger.logApiCall('OpenAI', 'embeddings', duration, error.status || 500);
       logger.logError(error, { text: text.substring(0, 100) });
       throw error;
     }
@@ -52,7 +50,6 @@ class OpenAIService {
       });
       
       const duration = Date.now() - startTime;
-      logger.logApiCall('OpenAI', 'chat/completions', duration, 200);
       
       return {
         content: response.choices[0].message.content,
@@ -62,17 +59,11 @@ class OpenAIService {
       };
     } catch (error) {
       const duration = Date.now() - startTime;
-      logger.logApiCall('OpenAI', 'chat/completions', duration, error.status || 500);
       logger.logError(error, { messageCount: messages.length });
       throw error;
     }
   }
 
-  /**
-   * Generate YouTube search tags and context description from user context
-   * @param {Object} context - Context object containing emotions, calendar, description
-   * @returns {Promise<Object>} Object with tags array and contextDescription string
-   */
   async generateContextTags(context) {
     const { emotionData, calendarEvents, description } = context;
     
@@ -113,12 +104,6 @@ class OpenAIService {
 
       const result = JSON.parse(response.content);
       
-      logger.info('Generated context tags and description', {
-        tagCount: result.tags?.length || 0,
-        hasContextDescription: !!result.contextDescription,
-        hasEmotions: !!emotionData,
-        eventCount: calendarEvents?.length || 0
-      });
       
       return result;
     } catch (error) {
@@ -127,21 +112,13 @@ class OpenAIService {
     }
   }
 
-  /**
-   * Generate embedding for YouTube video including comments
-   * @param {Object} video - Video object with title, description
-   * @param {Array} comments - Array of comment objects
-   * @returns {Promise<Array>} Embedding vector
-   */
   async generateVideoEmbedding(video, comments = []) {
     try {
-      // Extract comment text
       const commentsText = comments.map(comment => 
         comment.text ||
         ''
       ).join(' ');
       
-      // Combine video content with comments
       const textToEmbed = [
         video.title || '',
         video.description || '',
@@ -153,14 +130,8 @@ class OpenAIService {
         return null;
       }
       
-      // Generate embedding
       const embedding = await this.generateEmbedding(textToEmbed);
       
-      logger.info('Generated video embedding with comments', {
-        videoId: video.videoId,
-        commentCount: comments.length,
-        textLength: textToEmbed.length
-      });
       
       return embedding;
     } catch (error) {
@@ -172,11 +143,6 @@ class OpenAIService {
     }
   }
 
-  /**
-   * Generate meme use cases and text box completion guidelines
-   * @param {Object} memeInfo - Meme template information
-   * @returns {Promise<Object>} Object with useCases array and boxGuidelines object
-   */
   async generateMemeUseCases(memeInfo) {
     const { name,  boxCount } = memeInfo;
     
@@ -208,7 +174,6 @@ Provide only the JSON response.`;
         max_tokens: 800
       });
 
-      // Clean the response content by removing markdown code blocks
       let cleanContent = response.content.trim();
       if (cleanContent.startsWith('```json')) {
         cleanContent = cleanContent.replace(/^```json\s*/, '').replace(/\s*```$/, '');
@@ -218,11 +183,6 @@ Provide only the JSON response.`;
 
       const result = JSON.parse(cleanContent);
       
-      logger.info('Generated meme use cases', {
-        memeName: name,
-        hasUseCases: !!result.useCases,
-        hasBoxGuidelines: !!result.boxGuidelines
-      });
       
       return result;
     } catch (error) {

@@ -6,7 +6,6 @@ function TeamsMeetings({ authToken, meetings: propMeetings, onMeetingsChange }) 
   const [isLoading, setIsLoading] = useState(false);
   const [status, setStatus] = useState(null);
 
-  // Update local state when prop changes
   useEffect(() => {
     if (propMeetings) {
       setMeetings(propMeetings);
@@ -80,7 +79,6 @@ function TeamsMeetings({ authToken, meetings: propMeetings, onMeetingsChange }) 
                     <span className="time-label">Start:</span>
                     <span className="time-value">
                       {(() => {
-                        // Try to parse the date, checking for different possible fields
                         const startTime = meeting.start || meeting.startTime || meeting.start_time;
                         if (startTime) {
                           const date = new Date(startTime);
@@ -96,7 +94,6 @@ function TeamsMeetings({ authToken, meetings: propMeetings, onMeetingsChange }) 
                     <span className="time-label">End:</span>
                     <span className="time-value">
                       {(() => {
-                        // Try to parse the date, checking for different possible fields
                         const endTime = meeting.end || meeting.endTime || meeting.end_time;
                         if (endTime) {
                           const date = new Date(endTime);

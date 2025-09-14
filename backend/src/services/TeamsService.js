@@ -20,9 +20,6 @@ class TeamsService {
     }
   }
   
-  /**
-   * Get application access token for Graph API
-   */
   async getAccessToken() {
     if (!this._isConfigured) {
       throw new Error('Microsoft Graph is not configured');
@@ -39,9 +36,6 @@ class TeamsService {
     }
   }
   
-  /**
-   * Make API call to Microsoft Graph
-   */
   async makeGraphApiCall(endpoint, userToken = null, method = 'GET', body = null) {
     const accessToken = userToken || await this.getAccessToken();
     
@@ -67,19 +61,13 @@ class TeamsService {
     return response.json();
   }
   
-  /**
-   * Get user's calendar events (with caching)
-   */
   async getUserCalendarEvents(userPrincipalName, options = {}) {
     try {
-      // Get user email for cache lookup - use provided email or fallback to userPrincipalName
       const userEmail = options.userEmail || userPrincipalName || 'me';
       
-      // Check cache first
       if (!options.forceRefresh) {
         const cachedEvents = await this.getCachedMeetings(userEmail, options);
         if (cachedEvents && cachedEvents.length > 0) {
-          logger.info('Returning cached meetings', { userEmail, count: cachedEvents.length });
           return cachedEvents;
         }
       }
@@ -98,13 +86,11 @@ class TeamsService {
         ? `/me/calendar/events?${params.toString()}`
         : `/users/${userPrincipalName}/calendar/events?${params.toString()}`;
       
-      logger.info('Calling Microsoft Graph API', { endpoint });
         
       const result = await this.makeGraphApiCall(endpoint, options.userToken);
 
       const formattedEvents = this.formatCalendarEvents(result.value || []);
       
-      // Cache the results
       await this.cacheMeetings(userEmail, formattedEvents);
       
       return formattedEvents;
@@ -114,9 +100,6 @@ class TeamsService {
     }
   }
   
-  /**
-   * Format calendar events to simple structure
-   */
   formatCalendarEvents(events) {
     return events.map(event => ({
       id: event.id,
@@ -129,15 +112,9 @@ class TeamsService {
   }
 
 
-  /**
-   * Send a message to a Teams meeting chat
-   */
   async sendMeetingMessage(meetingId, message, userToken = null) {
     try {
-      logger.info('Sending message to Teams meeting', { meetingId, messageLength: message.length });
       
-      // For meeting chats, we need to use the onlineMeeting chat thread
-      // First, get the meeting details to find the chat thread
       const meetingEndpoint = `/me/onlineMeetings/${meetingId}`;
       const meeting = await this.makeGraphApiCall(meetingEndpoint, userToken);
       
@@ -145,7 +122,6 @@ class TeamsService {
         throw new Error('Meeting chat thread not found');
       }
       
-      // Send message to the chat thread
       const messagePayload = {
         body: {
           contentType: 'text',
@@ -156,11 +132,6 @@ class TeamsService {
       const chatEndpoint = `/chats/${meeting.chatInfo.threadId}/messages`;
       const result = await this.makeGraphApiCall(chatEndpoint, userToken, 'POST', messagePayload);
       
-      logger.info('Message sent successfully', { 
-        meetingId, 
-        messageId: result.id,
-        chatThreadId: meeting.chatInfo.threadId 
-      });
       
       return {
         success: true,
@@ -175,9 +146,6 @@ class TeamsService {
     }
   }
 
-  /**
-   * Send a message to a calendar event's associated Teams meeting
-   */
   async sendEventMessage(eventId, message, userToken = null) {
     try {
 
@@ -188,22 +156,18 @@ class TeamsService {
         throw new Error('Event is not a Teams meeting');
       }
       
-      // Extract thread ID from meeting URL
       const meetingUrl = event.onlineMeetingUrl || event.onlineMeeting?.joinUrl;
       if (!meetingUrl) {
         throw new Error('No Teams meeting URL found');
       }
       
-      // Extract thread ID from the URL pattern
       const threadIdMatch = meetingUrl.match(/meetup-join\/([^\/\?]+)/);
       if (!threadIdMatch) {
         throw new Error('Could not extract thread ID from meeting URL');
       }
       
       const threadId = decodeURIComponent(threadIdMatch[1]);
-      logger.info('Extracted thread ID from meeting URL', { threadId });
       
-      // Send message directly to the chat thread
       const messagePayload = {
         body: {
           contentType: 'text',
@@ -229,9 +193,6 @@ class TeamsService {
 
 
 
-  /**
-   * Calculate event duration in minutes
-   */
   calculateDuration(startTime, endTime) {
     if (!startTime || !endTime) return 0;
     
@@ -241,9 +202,6 @@ class TeamsService {
     return Math.round((end - start) / (1000 * 60));
   }
 
-  /**
-   * Cache meetings in TiDB (add 6 hours to compensate for timezone difference)
-   */
   async cacheMeetings(userEmail, meetings) {
     try {
       const conn = getConnection();
@@ -278,9 +236,6 @@ class TeamsService {
     }
   }
 
-  /**
-   * Get cached meetings from TiDB (with timezone handling)
-   */
   async getCachedMeetings(userEmail) {
     try {
       const conn = getConnection();

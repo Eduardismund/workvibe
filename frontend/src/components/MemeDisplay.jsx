@@ -53,20 +53,28 @@ function MemeDisplay({ generatedMeme, isGenerating, memeError }) {
             />
           </div>
           <div className="meme-actions">
-            <a 
-              href={generatedMeme.createdMeme.pageUrl} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="meme-link-button"
-            >
-              <span>🔗</span> View on Imgflip
-            </a>
             <button 
-              onClick={() => navigator.clipboard?.writeText(generatedMeme.createdMeme.imageUrl)}
-              className="copy-button"
-              title="Copy image URL"
+              onClick={async () => {
+                try {
+                  const response = await fetch(generatedMeme.createdMeme.imageUrl);
+                  const blob = await response.blob();
+                  const url = window.URL.createObjectURL(blob);
+                  const link = document.createElement('a');
+                  link.href = url;
+                  link.download = `meme-${Date.now()}.jpg`;
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                  window.URL.revokeObjectURL(url);
+                } catch (error) {
+                  console.error('Download failed:', error);
+                  window.open(generatedMeme.createdMeme.imageUrl, '_blank');
+                }
+              }}
+              className="download-button"
+              title="Download meme image"
             >
-              <span>📋</span> Copy Link
+              <i className="fas fa-download"></i> Download Meme
             </button>
           </div>
         </div>

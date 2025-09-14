@@ -14,7 +14,6 @@ class MemeService {
 
   async fetchMemesFromImgflip() {
     try {
-      logger.info('Fetching memes from Imgflip API');
       
       const response = await fetch(this.imgflipApiUrl);
       
@@ -39,7 +38,6 @@ class MemeService {
         boxGuidelines: null
       }));
       
-      logger.info(`Fetched ${memes.length} memes from Imgflip`);
       return memes;
     } catch (error) {
       logger.logError(error, { context: 'FETCH_MEMES_FROM_IMGFLIP' });
@@ -51,7 +49,6 @@ class MemeService {
     try {
       const useCasesText = typeof useCases === 'string' ? useCases : useCases.join(' ');
       const embedding = await OpenAIService.generateEmbedding(useCasesText);
-      logger.info('Generated embedding for use cases', { embeddingLength: embedding?.length });
       return embedding;
     } catch (error) {
       logger.logError(error, { context: 'GENERATE_USE_CASES_EMBEDDING' });
@@ -91,21 +88,15 @@ class MemeService {
     } = options;
 
     try {
-      // Get current count of memes in database
       const currentCount = await MemeTemplate.getCount();
-      logger.info(`Database currently has ${currentCount} memes`);
 
-      // Fetch all memes from Imgflip
       const allMemes = await this.fetchMemesFromImgflip();
-      logger.info(`Fetched ${allMemes.length} memes from Imgflip`);
 
-      // Start from the next available position (n+1)
       const startIndex = currentCount;
       const endIndex = Math.min(startIndex + count, allMemes.length);
       const memesToProcess = allMemes.slice(startIndex, endIndex);
 
       if (memesToProcess.length === 0) {
-        logger.info('No new memes to process');
         return {
           total: 0,
           successful: 0,
@@ -115,12 +106,6 @@ class MemeService {
         };
       }
 
-      logger.info(`Starting meme ingestion of ${memesToProcess.length} memes starting from position ${startIndex + 1}`, { 
-        count,
-        delay,
-        startIndex: startIndex + 1,
-        endIndex
-      });
 
       const results = [];
 
@@ -129,11 +114,9 @@ class MemeService {
         const globalIndex = startIndex + i + 1;
         
         try {
-          logger.info(`Processing meme ${i + 1}/${memesToProcess.length} (global: ${globalIndex}): ${meme.name}`);
 
           const existingMeme = await MemeTemplate.findByImgflipId(meme.id);
           if (existingMeme) {
-            logger.info('Meme already exists, skipping', { id: meme.id });
             results.push({ id: meme.id, success: true, status: 'skipped' });
             continue;
           }
@@ -142,7 +125,6 @@ class MemeService {
           await MemeTemplate.upsert(meme);
           results.push({ id: meme.id, success: true, status: 'ingested' });
 
-          // Add delay between each meme (except the last one)
           if (i < memesToProcess.length - 1 && delay > 0) {
             await new Promise(resolve => setTimeout(resolve, delay));
           }
@@ -190,10 +172,6 @@ class MemeService {
       const queryEmbedding = await OpenAIService.generateEmbedding(query);
       const similarMemes = await MemeTemplate.findSimilar(queryEmbedding, limit, threshold);
       
-      logger.info('Found similar memes', { 
-        query, 
-        resultCount: similarMemes.length 
-      });
       
       return similarMemes;
     } catch (error) {
@@ -204,24 +182,15 @@ class MemeService {
 
   async createMemeFromUserData({ selfie, description, video_id }) {
     try {
-      logger.info('Starting meme creation workflow', { 
-        hasImage: !!selfie, 
-        hasDescription: !!description,
-        hasVideoId: !!video_id
-      });
 
-      // Step 1: Analyze emotion from selfie
-      logger.info('Step 1: Analyzing emotions from selfie');
       const emotionData = await EmotionService.analyzeWithAWS(selfie);
       
       if (emotionData.error) {
         throw new Error(`Emotion analysis failed: ${emotionData.error}`);
       }
 
-      // Step 2: Get video data if video_id provided
       let videoData = null;
       if (video_id) {
-        logger.info('Step 2: Fetching YouTube video data', { video_id });
         try {
           videoData = await YouTubeService.getVideoMetadata(video_id);
         } catch (error) {
@@ -229,8 +198,6 @@ class MemeService {
         }
       }
 
-      // Step 3: Generate context using AI
-      logger.info('Step 3: Generating context from user data');
       const context = await this.generateUserContext({
         emotions: emotionData.emotions,
         primaryEmotion: emotionData.primaryEmotion,
@@ -238,8 +205,6 @@ class MemeService {
         videoData
       });
 
-      // Step 4: Find best matching meme template
-      logger.info('Step 4: Finding best meme template');
       const contextEmbedding = await OpenAIService.generateEmbedding(context);
       const similarMemes = await MemeTemplate.findSimilar(contextEmbedding, 1, 0.5);
       
@@ -248,13 +213,7 @@ class MemeService {
       }
 
       const bestMeme = similarMemes[0];
-      logger.info('Found best meme template', { 
-        memeName: bestMeme.name, 
-        similarity: bestMeme.similarity 
-      });
 
-      // Step 5: Generate meme text using AI
-      logger.info('Step 5: Generating meme text');
       const memeText = await this.generateMemeText({
         memeTemplate: bestMeme,
         context,
@@ -263,8 +222,6 @@ class MemeService {
         videoData
       });
 
-      // Step 6: Create the actual meme image with text
-      logger.info('Step 6: Creating meme image');
       const memeImage = await this.createMemeImage(bestMeme.id, memeText.texts);
 
       return {
@@ -357,6 +314,7 @@ Generate text for each of the ${memeTemplate.box_count} boxes that:
 2. Reflects the user's emotional state and situation
 3. Creates humor through contrast, irony, or relatability
 4. Is concise and meme-appropriate (short, punchy text)
+5. IMPORTANT: Use only plain text - NO emojis, emoticons, or special characters
 
 Format as JSON:
 {
@@ -376,7 +334,6 @@ Provide only the JSON response.`;
         max_tokens: 400
       });
 
-      // Clean response content
       let cleanContent = response.content.trim();
       if (cleanContent.startsWith('```json')) {
         cleanContent = cleanContent.replace(/^```json\s*/, '').replace(/\s*```$/, '');
@@ -399,17 +356,12 @@ Provide only the JSON response.`;
         throw new Error('Imgflip credentials not configured. Set IMGFLIP_USERNAME and IMGFLIP_PASSWORD');
       }
 
-      logger.info('Creating meme image with Imgflip API', { 
-        templateId, 
-        textCount: texts.length 
-      });
 
       const formData = new URLSearchParams();
       formData.append('template_id', templateId);
       formData.append('username', process.env.IMGFLIP_USERNAME);
       formData.append('password', process.env.IMGFLIP_PASSWORD);
 
-      // Use boxes parameter for multiple text boxes (required for 3+ boxes)
       texts.forEach((text, index) => {
         formData.append(`boxes[${index}][text]`, text);
       });
@@ -428,10 +380,6 @@ Provide only the JSON response.`;
         throw new Error(`Imgflip API error: ${data.error_message}`);
       }
 
-      logger.info('Meme image created successfully', { 
-        memeUrl: data.data.url,
-        pageUrl: data.data.page_url
-      });
 
       return {
         imageUrl: data.data.url,

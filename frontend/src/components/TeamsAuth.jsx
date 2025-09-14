@@ -7,13 +7,9 @@ function TeamsAuth({ onAuthSuccess }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    // Check auth status on component mount (without showing loading)
     checkAuthStatus(false);
-    
-    // Check if we're returning from auth callback
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('auth') === 'success') {
-      // Clean up URL
       window.history.replaceState({}, document.title, window.location.pathname);
       setIsAuthenticated(true);
       onAuthSuccess(true);
@@ -25,26 +21,21 @@ function TeamsAuth({ onAuthSuccess }) {
     setAuthStatus(null);
     
     try {
-      // Open auth in popup window instead of redirecting
-      const authUrl = 'http://localhost:3002/api/auth/login';
+      const authUrl = `${import.meta.env.VITE_API_URL || 'http://localhost:3002/api'}/auth/login`;
       const authWindow = window.open(
         authUrl, 
         'teams-auth', 
         'width=600,height=700,left=100,top=100'
       );
-      
-      // Check if auth window is closed and poll for auth status
       const checkInterval = setInterval(async () => {
         if (authWindow && authWindow.closed) {
           clearInterval(checkInterval);
-          // Window closed, check if auth was successful
           const authSuccess = await checkAuthStatus(true);
           if (!authSuccess) {
             setIsAuthenticating(false);
           }
           window.removeEventListener('message', handleMessage);
         } else {
-          // Also periodically check auth status while window is open
           const authSuccess = await checkAuthStatus(false);
           if (authSuccess && authWindow && !authWindow.closed) {
             clearInterval(checkInterval);
@@ -54,12 +45,10 @@ function TeamsAuth({ onAuthSuccess }) {
         }
       }, 1000);
 
-      // Also listen for messages from the auth window
       const handleMessage = (event) => {
         console.log('Received message in main window:', event.data, 'from:', event.origin);
-        
-        // Accept messages from the backend server
-        if (event.origin === 'http://localhost:3002') {
+        const expectedOrigin = import.meta.env.VITE_API_URL ? new URL(import.meta.env.VITE_API_URL).origin : 'http://localhost:3002';
+        if (event.origin === expectedOrigin) {
           const isAuthSuccess = 
             event.data === 'auth-success' ||
             (event.data && event.data.type === 'auth-success');
@@ -71,10 +60,9 @@ function TeamsAuth({ onAuthSuccess }) {
             setIsAuthenticating(false);
             onAuthSuccess(true);
             window.removeEventListener('message', handleMessage);
-            
-            // Send close message to popup and try to close it
             if (authWindow && !authWindow.closed) {
-              authWindow.postMessage('close-popup', 'http://localhost:3002');
+              const targetOrigin = import.meta.env.VITE_API_URL ? new URL(import.meta.env.VITE_API_URL).origin : 'http://localhost:3002';
+              authWindow.postMessage('close-popup', targetOrigin);
               setTimeout(() => {
                 if (!authWindow.closed) {
                   authWindow.close();
@@ -99,7 +87,6 @@ function TeamsAuth({ onAuthSuccess }) {
     }
     
     try {
-      // Check if we can get today's meetings as auth verification
       const response = await api.get('/teams/today');
       if (response.data.events !== undefined) {
         setIsAuthenticated(true);

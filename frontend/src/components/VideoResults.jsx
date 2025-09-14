@@ -83,7 +83,6 @@ function VideoResults({ filteredVideos, ingestionResult, likedVideos = [], onLik
       
       if (onMemeGenerated) onMemeGenerated(result.data);
     } catch (error) {
-      console.error('Error generating meme:', error);
       if (onMemeError) onMemeError(error.response?.data?.message || 'Failed to generate meme');
     } finally {
       setGeneratingMeme(false);

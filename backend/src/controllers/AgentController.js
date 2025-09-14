@@ -1,5 +1,4 @@
 import AgentOrchestrator from '../services/AgentOrchestrator.js';
-import AgentSessionModel from '../models/AgentSession.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import logger from '../utils/logger.js';
 

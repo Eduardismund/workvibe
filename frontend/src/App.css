@@ -72,7 +72,6 @@ html, body, #root {
   background: linear-gradient(90deg, #212959, #4069b6);
 }
 
-/* Buttons */
 button {
   background: #4069b6;
   color: white;
@@ -116,7 +115,6 @@ button:disabled {
   box-shadow: 0 6px 16px rgba(33, 41, 89, 0.4);
 }
 
-/* Status Messages */
 .success {
   color: #5a7fc6;
   font-size: 14px;
@@ -156,7 +154,6 @@ button:disabled {
   margin-top: 8px;
 }
 
-/* Form Elements */
 input, textarea {
   width: 100%;
   padding: 16px 20px;
@@ -197,7 +194,6 @@ input:focus, textarea:focus {
 }
 
 
-/* Photo Upload */
 .preview-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
@@ -213,7 +209,6 @@ input:focus, textarea:focus {
   border: 1px solid #e5e7eb;
 }
 
-/* Teams Meetings */
 .teams-meetings {
   margin-top: 16px;
 }
@@ -273,7 +268,6 @@ input:focus, textarea:focus {
   font-style: italic;
 }
 
-/* YouTube Carousel */
 .video-carousel {
   display: flex;
   flex-direction: column;
@@ -336,7 +330,6 @@ input:focus, textarea:focus {
   margin-top: 8px;
 }
 
-/* Video Carousel Navigation */
 .video-carousel {
   display: flex;
   flex-direction: column;
@@ -364,7 +357,6 @@ input:focus, textarea:focus {
   cursor: not-allowed;
 }
 
-/* Heart Button */
 .video-header {
   display: flex;
   justify-content: space-between;
@@ -401,7 +393,6 @@ input:focus, textarea:focus {
   transform: scale(1.05);
 }
 
-/* Liked Videos */
 .liked-videos-content {
   display: flex;
   flex-direction: column;
@@ -837,6 +828,25 @@ input:focus, textarea:focus {
   box-shadow: 0 4px 15px rgba(64, 105, 182, 0.1);
 }
 
+.analysis-results::-webkit-scrollbar {
+  width: 8px;
+}
+
+.analysis-results::-webkit-scrollbar-track {
+  background: #ffffff;
+  border-radius: 4px;
+}
+
+.analysis-results::-webkit-scrollbar-thumb {
+  background: #ffffff;
+  border-radius: 4px;
+  border: 1px solid #e5e7eb;
+}
+
+.analysis-results::-webkit-scrollbar-thumb:hover {
+  background: #f9fafb;
+}
+
 .analysis-results h3 {
   color: #212959;
   font-size: 18px;
@@ -1225,6 +1235,25 @@ input:focus, textarea:focus {
   overflow-y: auto;
 }
 
+.analysis-column .section::-webkit-scrollbar {
+  width: 8px;
+}
+
+.analysis-column .section::-webkit-scrollbar-track {
+  background: #ffffff;
+  border-radius: 4px;
+}
+
+.analysis-column .section::-webkit-scrollbar-thumb {
+  background: #ffffff;
+  border-radius: 4px;
+  border: 1px solid #e5e7eb;
+}
+
+.analysis-column .section::-webkit-scrollbar-thumb:hover {
+  background: #f9fafb;
+}
+
 .logo-column{
   height: 100%;
   padding-left: 20px;
@@ -1284,6 +1313,13 @@ input:focus, textarea:focus {
   border-radius: 12px;
   border: 2px solid rgba(64, 105, 182, 0.2);
   margin-top: 4px;
+}
+
+.stats-header {
+  color: #333;
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 8px;
 }
 
 .stat-item {
@@ -1879,7 +1915,6 @@ input:focus, textarea:focus {
   font-size: 12px;
 }
 
-/* View-specific layout adjustments */
 .container.setup-view {
   display: block;
   width: 100%;
@@ -1894,7 +1929,6 @@ input:focus, textarea:focus {
   overflow-y: auto;
 }
 
-/* New Layout Structure - Left Icon, Right Container */
 .setup-container-new-layout {
   display: grid;
   grid-template-columns: 450px 1fr;
@@ -2039,7 +2073,6 @@ input:focus, textarea:focus {
   gap: 24px;
 }
 
-/* Results Layout Structure */
 .results-container-new-layout {
   display: grid;
   grid-template-columns: 380px 1fr;

@@ -45,11 +45,10 @@ function LikedVideos({ likedVideos, onLikedVideosChange, onLikedVideosIngested }
           onLikedVideosIngested(response.data.data);
         }
         
-        // Clear the liked videos list after successful ingestion
         if (onLikedVideosChange) {
           setTimeout(() => {
             onLikedVideosChange([]);
-          }, 2000); // Wait 2 seconds to show success message first
+          }, 2000);
         }
       }
     } catch (error) {
