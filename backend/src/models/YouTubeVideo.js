@@ -2,47 +2,6 @@ import { getConnection } from '../config/database.js';
 import logger from '../utils/logger.js';
 
 class YouTubeVideoModel {
-  static async createTable() {
-    const conn = getConnection();
-    
-    try {
-      // Create table with VECTOR column for embeddings (TiDB Serverless compatible)
-      await conn.execute(`
-        CREATE TABLE IF NOT EXISTS youtube_videos (
-          video_id VARCHAR(255) PRIMARY KEY,
-          title VARCHAR(500),
-          description TEXT,
-          channel_title VARCHAR(255),
-          url VARCHAR(500),
-          search_tag VARCHAR(255),
-          session_id VARCHAR(36),
-          
-          -- Store embedding as TEXT (proven to work with TiDB vector functions)
-          content_embedding TEXT,
-          
-          -- Store comments as JSON
-          comments JSON,
-          
-          -- Track if video has been watched/filtered
-          watched BOOLEAN DEFAULT FALSE,
-          
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-          
-          INDEX idx_session (session_id),
-          INDEX idx_search_tag (search_tag),
-          INDEX idx_watched (watched)
-        )
-      `);
-      
-      logger.info('YouTube videos table created/verified with VECTOR support');
-      return true;
-    } catch (error) {
-      logger.logError(error, { context: 'CREATE_YOUTUBE_TABLE' });
-      throw error;
-    }
-  }
-  
   static async upsert(videoData) {
     const conn = getConnection();
     
@@ -96,22 +55,6 @@ class YouTubeVideoModel {
     }
   }
   
-  static async bulkUpsert(videos) {
-    const results = [];
-    
-    for (const video of videos) {
-      try {
-        await this.upsert(video);
-        results.push({ videoId: video.videoId, success: true });
-      } catch (error) {
-        logger.warn('Failed to upsert video', { videoId: video.videoId, error: error.message });
-        results.push({ videoId: video.videoId, success: false, error: error.message });
-      }
-    }
-    
-    return results;
-  }
-  
   static async findSimilar(embedding, limit = 10, threshold = 0.8) {
     const conn = getConnection();
     
@@ -148,97 +91,6 @@ class YouTubeVideoModel {
     }
   }
   
-  static async findByVideoId(videoId) {
-    const conn = getConnection();
-    
-    try {
-      const result = await conn.execute(`
-        SELECT * FROM youtube_videos WHERE video_id = ?
-      `, [videoId]);
-      
-      return result.rows[0] || null;
-    } catch (error) {
-      logger.logError(error, { videoId });
-      throw error;
-    }
-  }
-  
-  static async findBySessionId(sessionId, limit = 50) {
-    const conn = getConnection();
-    
-    try {
-      const result = await conn.execute(`
-        SELECT * FROM youtube_videos 
-        WHERE session_id = ?
-        ORDER BY created_at DESC
-        LIMIT ?
-      `, [sessionId, limit]);
-      
-      return result.rows;
-    } catch (error) {
-      logger.logError(error, { sessionId });
-      throw error;
-    }
-  }
-  
-  static async findBySearchTag(searchTag, limit = 20) {
-    const conn = getConnection();
-    
-    try {
-      const result = await conn.execute(`
-        SELECT * FROM youtube_videos 
-        WHERE search_tag = ?
-        ORDER BY view_count DESC, like_count DESC
-        LIMIT ?
-      `, [searchTag, limit]);
-      
-      return result.rows;
-    } catch (error) {
-      logger.logError(error, { searchTag });
-      throw error;
-    }
-  }
-  
-  static async getPopularVideos(limit = 20, daysBack = 7) {
-    const conn = getConnection();
-    
-    try {
-      const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - daysBack);
-      
-      const result = await conn.execute(`
-        SELECT * FROM youtube_videos 
-        WHERE created_at >= ?
-        ORDER BY view_count DESC, like_count DESC
-        LIMIT ?
-      `, [cutoffDate, limit]);
-      
-      return result.rows;
-    } catch (error) {
-      logger.logError(error, { limit, daysBack });
-      throw error;
-    }
-  }
-  
-  static async updateEmbedding(videoId, embedding) {
-    const conn = getConnection();
-    
-    try {
-      const embeddingVector = `[${embedding.join(',')}]`;
-      
-      await conn.execute(`
-        UPDATE youtube_videos 
-        SET content_embedding = ?, updated_at = CURRENT_TIMESTAMP
-        WHERE video_id = ?
-      `, [embeddingVector, videoId]);
-      
-      logger.info('Video embedding updated', { videoId });
-      return true;
-    } catch (error) {
-      logger.logError(error, { videoId });
-      throw error;
-    }
-  }
 
   static async markAsWatched(videoIds) {
     const conn = getConnection();
@@ -268,23 +120,6 @@ class YouTubeVideoModel {
     }
   }
 
-  static async getWatchedVideos(limit = 50) {
-    const conn = getConnection();
-    
-    try {
-      const result = await conn.execute(`
-        SELECT * FROM youtube_videos 
-        WHERE watched = TRUE
-        ORDER BY updated_at DESC
-        LIMIT ?
-      `, [limit]);
-      
-      return Array.isArray(result) ? result : (result?.rows || []);
-    } catch (error) {
-      logger.logError(error, { context: 'GET_WATCHED_VIDEOS' });
-      throw error;
-    }
-  }
 }
 
 export default YouTubeVideoModel;

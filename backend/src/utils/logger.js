@@ -3,7 +3,6 @@ import config from '../config/index.js';
 import fs from 'fs';
 import path from 'path';
 
-// Ensure logs directory exists
 const logsDir = path.dirname(config.logging.file);
 if (!fs.existsSync(logsDir)) {
   fs.mkdirSync(logsDir, { recursive: true });
@@ -47,7 +46,6 @@ const logger = winston.createLogger({
   ]
 });
 
-// Add console transport in development
 if (config.env === 'development') {
   logger.add(new winston.transports.Console({
     format: winston.format.combine(
@@ -70,24 +68,6 @@ if (config.env === 'development') {
   }));
 }
 
-// Helper methods for structured logging
-logger.logAgentAction = (sessionId, stepNumber, actionType, data) => {
-  logger.info('Agent Action', {
-    sessionId,
-    stepNumber,
-    actionType,
-    ...data
-  });
-};
-
-logger.logApiCall = (apiName, endpoint, duration, status) => {
-  logger.info('API Call', {
-    apiName,
-    endpoint,
-    duration,
-    status
-  });
-};
 
 logger.logError = (error, context = {}) => {
   logger.error(error.message, {

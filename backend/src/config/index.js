@@ -22,17 +22,11 @@ const configSchema = Joi.object({
   
   // External APIs
   YOUTUBE_API_KEY: Joi.string().optional(),
-  GOOGLE_SEARCH_API_KEY: Joi.string().optional(),
-  GOOGLE_SEARCH_ENGINE_ID: Joi.string().optional(),
   
   // Microsoft Teams/Graph
   MICROSOFT_CLIENT_ID: Joi.string().optional(),
   MICROSOFT_CLIENT_SECRET: Joi.string().optional(),
   MICROSOFT_TENANT_ID: Joi.string().optional(),
-  
-  // Notion
-  NOTION_TOKEN: Joi.string().optional(),
-  NOTION_ROOT_PAGE_ID: Joi.string().optional(),
   
   // Logging
   LOG_LEVEL: Joi.string().valid('error', 'warn', 'info', 'debug').default('info'),
@@ -42,10 +36,6 @@ const configSchema = Joi.object({
   RATE_LIMIT_WINDOW: Joi.number().default(15),
   RATE_LIMIT_MAX_REQUESTS: Joi.number().default(100),
   
-  // Analysis
-  MAX_TRANSCRIPT_LENGTH: Joi.number().default(50000),
-  MAX_RELATED_VIDEOS: Joi.number().default(5),
-  SIMILARITY_THRESHOLD: Joi.number().default(0.7)
 }).unknown();
 
 const { error, value: envVars } = configSchema.validate(process.env);
@@ -78,14 +68,6 @@ const config = {
     youtube: {
       apiKey: envVars.YOUTUBE_API_KEY
     },
-    google: {
-      searchApiKey: envVars.GOOGLE_SEARCH_API_KEY,
-      searchEngineId: envVars.GOOGLE_SEARCH_ENGINE_ID
-    },
-    notion: {
-      token: envVars.NOTION_TOKEN,
-      rootPageId: envVars.NOTION_ROOT_PAGE_ID
-    },
     microsoft: {
       clientId: envVars.MICROSOFT_CLIENT_ID,
       clientSecret: envVars.MICROSOFT_CLIENT_SECRET,
@@ -103,12 +85,6 @@ const config = {
     windowMs: envVars.RATE_LIMIT_WINDOW * 60 * 1000,
     max: envVars.RATE_LIMIT_MAX_REQUESTS
   },
-  
-  analysis: {
-    maxTranscriptLength: envVars.MAX_TRANSCRIPT_LENGTH,
-    maxRelatedVideos: envVars.MAX_RELATED_VIDEOS,
-    similarityThreshold: envVars.SIMILARITY_THRESHOLD
-  }
 };
 
 export default config;

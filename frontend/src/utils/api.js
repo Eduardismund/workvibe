@@ -1,15 +1,12 @@
 import axios from 'axios';
 
-// Create axios instance with default config
 const api = axios.create({
-  baseURL: 'http://localhost:3002/api',
-  withCredentials: true, // Important for session cookies
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3002/api',
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json'
   }
 });
-
-// API methods
 export const createMeme = async (selfieFile, description, videoId) => {
   const formData = new FormData();
   formData.append('selfie', selfieFile);

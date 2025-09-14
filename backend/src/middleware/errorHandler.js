@@ -52,7 +52,6 @@ const handleDatabaseError = (error) => {
 };
 
 const sendErrorDev = (err, res) => {
-  // Serialize error object safely to avoid circular references
   const errorObj = {
     name: err.name,
     message: err.message,
@@ -61,7 +60,6 @@ const sendErrorDev = (err, res) => {
     stack: err.stack
   };
   
-  // Add response status if available
   if (err.response?.status) {
     errorObj.responseStatus = err.response.status;
   }
@@ -107,7 +105,6 @@ const globalErrorHandler = (err, req, res, next) => {
   let error = { ...err };
   error.message = err.message;
   
-  // Handle specific error types
   if (err.name === 'ValidationError') {
     error = handleValidationError(err);
   } else if (err.message.includes('Duplicate entry')) {

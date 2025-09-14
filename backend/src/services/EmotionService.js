@@ -22,9 +22,6 @@ class EmotionService {
     });
   }
 
-  /**
-   * Analyze emotions using AWS Rekognition
-   */
   async analyzeWithAWS(imageBuffer) {
     if (!this.awsConfigured) {
       throw new Error('AWS Rekognition not configured. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY');
@@ -66,12 +63,8 @@ class EmotionService {
     }
   }
 
-  /**
-   * Analyze emotions using OpenAI Vision
-   */
   async analyzeWithOpenAI(imageBuffer) {
     try {
-      // Convert image to base64
       const base64Image = imageBuffer.toString('base64');
       
       const response = await this.openai.chat.completions.create({
@@ -98,11 +91,9 @@ class EmotionService {
 
       const result = response.choices[0].message.content;
       
-      // Parse JSON from response
       try {
         return JSON.parse(result);
       } catch {
-        // If not valid JSON, return as description
         return {
           description: result,
           emotions: null,
@@ -115,25 +106,15 @@ class EmotionService {
     }
   }
 
-  /**
-   * Analyze emotions - tries AWS first, falls back to OpenAI
-   */
   async analyzeEmotion(imageBuffer, preferredService = 'aws') {
-    logger.info('analyzeEmotion called', { 
-      hasBuffer: !!imageBuffer, 
-      bufferSize: imageBuffer?.length,
-      service: preferredService 
-    });
     
     try {
       if (preferredService === 'aws' && this.awsConfigured) {
-        logger.info('Using AWS Rekognition for emotion analysis');
         return {
           service: 'aws',
           ...await this.analyzeWithAWS(imageBuffer)
         };
       } else if (preferredService === 'openai' || !this.awsConfigured) {
-        logger.info('Using OpenAI Vision for emotion analysis');
         return {
           service: 'openai',
           ...await this.analyzeWithOpenAI(imageBuffer)
@@ -145,7 +126,6 @@ class EmotionService {
       logger.error('Emotion analysis failed', error);
       
       if (preferredService === 'aws' && !this.awsConfigured) {
-        logger.info('Falling back to OpenAI Vision');
         return {
           service: 'openai',
           ...await this.analyzeWithOpenAI(imageBuffer)

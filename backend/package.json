@@ -15,7 +15,6 @@
   "dependencies": {
     "@azure/msal-node": "^3.7.0",
     "@microsoft/microsoft-graph-client": "^3.0.7",
-    "@modelcontextprotocol/sdk": "^1.17.5",
     "@tidbcloud/serverless": "^0.2.0",
     "aws-sdk": "^2.1692.0",
     "axios": "^1.7.9",

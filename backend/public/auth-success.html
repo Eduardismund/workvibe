@@ -30,36 +30,10 @@
         <h1>✓ Authentication Successful!</h1>
     </div>
     <script>
-        console.log('Auth success page loaded');
-        console.log('Window opener exists:', !!window.opener);
-        
-        // Send message to parent window
         if (window.opener) {
-            console.log('Sending auth-success message to parent');
-            // Try multiple ways to send the message
-            window.opener.postMessage({ type: 'auth-success' }, 'http://localhost:5173');
-            window.opener.postMessage('auth-success', 'http://localhost:5173');
-            window.opener.postMessage({ type: 'auth-success' }, '*');
-            
-            // Close window after a short delay
-            setTimeout(() => {
-                console.log('Closing popup window');
-                window.close();
-            }, 2000);
-        } else {
-            console.log('No opener, trying to close anyway');
-            setTimeout(() => {
-                window.close();
-            }, 2000);
+            window.opener.postMessage('auth-success', '*');
         }
-        
-        // Also try to close if parent sends close message
-        window.addEventListener('message', (event) => {
-            console.log('Received message in popup:', event.data);
-            if (event.data === 'close-popup') {
-                window.close();
-            }
-        });
+        setTimeout(() => window.close(), 1500);
     </script>
 </body>
 </html>

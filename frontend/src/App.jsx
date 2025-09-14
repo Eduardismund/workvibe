@@ -28,7 +28,6 @@ function App() {
   const [hasIngestedRecommendations, setHasIngestedRecommendations] = useState(false);
   const [hasRefreshedFeed, setHasRefreshedFeed] = useState(false);
 
-  // Function to fetch content statistics
   const fetchContentStats = async () => {
     try {
       const response = await getContentStats();
@@ -36,16 +35,13 @@ function App() {
         setContentStats(response.data);
       }
     } catch (error) {
-      console.error('Failed to fetch content stats:', error);
     }
   };
 
-  // Fetch content statistics on component mount
   useEffect(() => {
     fetchContentStats();
   }, []);
 
-  // Handle reset watch history
   const handleResetWatchHistory = async () => {
     if (!window.confirm('Are you sure you want to reset all watch history? This will mark all videos as unwatched.')) {
       return;
@@ -57,19 +53,16 @@ function App() {
         alert(`Successfully reset watch history for ${response.data.data.videosReset} videos`);
       }
     } catch (error) {
-      console.error('Failed to reset watch history:', error);
       alert('Failed to reset watch history. Please try again.');
     }
   };
 
-  // Handle refresh feed after ingesting liked videos
   const handleRefreshFeed = async () => {
     if (!selfieFile || !description) {
       alert('Unable to refresh feed. Selfie and description are required.');
       return;
     }
 
-    // Get video IDs from current filtered videos (first 20)
     const videoIds = filteredVideos?.filteredVideos?.slice(0, 20).map(v => v.video_id || v.videoId) || [];
     
     if (videoIds.length === 0) {
@@ -78,13 +71,7 @@ function App() {
     }
 
     try {
-      // Step 1: Reset watch history for current videos
-      console.log('Resetting watch history for current videos:', videoIds);
       const resetResponse = await api.post('/ingest/reset-watched', { videoIds });
-      console.log(`Reset watch history for ${resetResponse.data.data.videosReset} videos`);
-
-      // Step 2: Re-filter videos with same selfie and description
-      console.log('Re-filtering videos with same context');
       const formData = new FormData();
       formData.append('selfie', selfieFile);
       formData.append('description', description);
@@ -97,15 +84,13 @@ function App() {
 
       if (filterResponse.data.data) {
         setFilteredVideos(filterResponse.data.data);
-        setShowRefreshFeed(false); // Hide the refresh button after successful refresh
-        setHasRefreshedFeed(true); // Mark that feed has been refreshed
-        console.log('Feed refreshed with new videos');
-        return true; // Return success
+        setShowRefreshFeed(false);
+        setHasRefreshedFeed(true);
+        return true;
       }
     } catch (error) {
-      console.error('Failed to refresh feed:', error);
       alert('Failed to refresh feed. Please try again.');
-      return false; // Return failure
+      return false;
     }
   };
 
@@ -116,8 +101,6 @@ function App() {
 
   const handleBackToSetup = () => {
     setCurrentView('setup');
-    // Keep filteredVideos and ingestionResult cached
-    // Only clear meme-related state
     setGeneratedMeme(null);
     setMemeError(null);
   };
@@ -137,6 +120,7 @@ function App() {
                     current energy and enhance your work experience.
                   </p>
                   <div className="content-stats">
+                    <p className="stats-header">The Database stores:</p>
                     <div className="stat-item">
                       <i className="fas fa-video"></i>
                       <span className="stat-number">{contentStats.videos.toLocaleString()}</span>
@@ -210,7 +194,7 @@ function App() {
                         onLikedVideosChange={setLikedVideos}
                         onSelfieChange={setSelfieFile}
                         onDescriptionChange={setDescription}
-                        showResults={false}  // Don't show video results in setup view
+                        showResults={false}
                         filteredVideos={filteredVideos}
                         ingestionResult={ingestionResult}
                         selfieFile={selfieFile}
@@ -258,14 +242,9 @@ function App() {
                     likedVideos={likedVideos}
                     onLikedVideosChange={setLikedVideos}
                     onLikedVideosIngested={(result) => {
-                      console.log('Liked videos ingested:', result);
-                      // Show refresh feed button after successful ingestion
                       setShowRefreshFeed(true);
-                      // Mark that recommendations have been ingested
                       setHasIngestedRecommendations(true);
-                      // Reset the refresh state to allow refreshing again
                       setHasRefreshedFeed(false);
-                      // Refresh stats to show new videos count
                       fetchContentStats();
                     }}
                 />

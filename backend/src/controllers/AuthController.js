@@ -57,12 +57,9 @@ class AuthController {
       req.session.account = response.account;
       req.session.isAuthenticated = true;
       req.session.userPrincipalName = response.account.username;
-      req.session.userEmail = response.account.username; // Store email for cache lookup
+      req.session.userEmail = response.account.username;
       
       try {
-        logger.info('Fetching and caching Teams meetings on login', { 
-          userEmail: response.account.username 
-        });
         
         await TeamsService.getUserCalendarEvents(response.account.username, {
           userToken: response.accessToken,
@@ -74,7 +71,6 @@ class AuthController {
         logger.warn('Failed to fetch and cache meetings on login', { error: cacheError.message });
       }
       
-      // Serve success page that will close the popup
       res.sendFile(path.join(process.cwd(), 'public', 'auth-success.html'));
       
     } catch (error) {

@@ -9,9 +9,6 @@ class YouTubeService {
     this.baseUrl = 'https://www.googleapis.com/youtube/v3';
   }
   
-  /**
-   * Extract video ID from various YouTube URL formats
-   */
   extractVideoId(url) {
     const patterns = [
       /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([^&\n?#]+)/,
@@ -27,9 +24,6 @@ class YouTubeService {
   }
 
   
-  /**
-   * Search for YouTube Shorts videos - simplified version
-   */
   async searchShorts(query, maxResults = 20) {
     const startTime = Date.now();
     
@@ -63,15 +57,11 @@ class YouTubeService {
       
     } catch (error) {
       const duration = Date.now() - startTime;
-      logger.logApiCall('YouTube', 'search/shorts', duration, error.response?.status || 500);
       logger.logError(error, { query, maxResults });
       throw error;
     }
   }
 
-  /**
-   * Get video metadata (title, description, etc.)
-   */
   async getVideoMetadata(videoId) {
     const startTime = Date.now();
     
@@ -84,8 +74,6 @@ class YouTubeService {
         }
       });
 
-      const duration = Date.now() - startTime;
-      logger.logApiCall('YouTube', 'videos', duration, 200);
 
       if (!response.data.items || response.data.items.length === 0) {
         throw new Error('Video not found');
@@ -104,48 +92,13 @@ class YouTubeService {
       };
       
     } catch (error) {
-      const duration = Date.now() - startTime;
-      logger.logApiCall('YouTube', 'videos', duration, error.response?.status || 500);
       logger.logError(error, { videoId });
       throw error;
     }
   }
 
 
-  /**
-   * Get video metadata (title, description, etc.)
-   */
-  async getTotalVideosInDb() {
-    try {
 
-
-      if (!response.data.items || response.data.items.length === 0) {
-        throw new Error('Video not found');
-      }
-
-      const video = response.data.items[0];
-      return {
-        videoId: video.id,
-        title: video.snippet.title,
-        description: video.snippet.description,
-        channelTitle: video.snippet.channelTitle,
-        publishedAt: video.snippet.publishedAt,
-        viewCount: video.statistics.viewCount,
-        likeCount: video.statistics.likeCount,
-        commentCount: video.statistics.commentCount
-      };
-
-    } catch (error) {
-      const duration = Date.now() - startTime;
-      logger.logApiCall('YouTube', 'videos', duration, error.response?.status || 500);
-      logger.logError(error, { videoId });
-      throw error;
-    }
-  }
-
-  /**
-   * Get top comments from a video
-   */
   async getVideoComments(videoId, maxResults = 5) {
     try {
       const response = await axios.get(`${this.baseUrl}/commentThreads`, {
@@ -170,7 +123,6 @@ class YouTubeService {
       
     } catch (error) {
       if (error.response?.status === 403 && error.response?.data?.error?.errors?.[0]?.reason === 'commentsDisabled') {
-        logger.info('Comments are disabled for this video', { videoId });
         return [];
       }
       
@@ -179,13 +131,8 @@ class YouTubeService {
     }
   }
 
-  /**
-   * Get recommended videos based on a video (using search with related terms)
-   * Since YouTube API v3 removed related videos, we'll use channel + similar search terms
-   */
   async getRecommendedVideos(videoId, maxResults = 10) {
     try {
-      // First, get the video details to extract channel and tags
       const videoResponse = await axios.get(`${this.baseUrl}/videos`, {
         params: {
           part: 'snippet,statistics',
@@ -203,17 +150,14 @@ class YouTubeService {
       const title = video.snippet.title;
       const tags = video.snippet.tags || [];
       
-      // Extract keywords from title for search
       const titleWords = title.split(' ').filter(word => 
         word.length > 3 && 
         !['video', 'watch', 'subscribe', 'like', 'share'].includes(word.toLowerCase())
       );
 
-      // Combine tags and title keywords for search
       const searchTerms = [...tags.slice(0, 3), ...titleWords.slice(0, 3)];
       const searchQuery = searchTerms.join(' ');
 
-      // Search for related videos
       const searchResponse = await axios.get(`${this.baseUrl}/search`, {
         params: {
           part: 'snippet',
@@ -226,7 +170,7 @@ class YouTubeService {
       });
 
       const relatedVideos = searchResponse.data.items
-        .filter(item => item.id.videoId !== videoId) // Remove the original video
+        .filter(item => item.id.videoId !== videoId)
         .slice(0, maxResults)
         .map(item => ({
           videoId: item.id.videoId,
@@ -239,11 +183,6 @@ class YouTubeService {
           url: `https://www.youtube.com/watch?v=${item.id.videoId}`
         }));
 
-      logger.info('Found recommended videos', { 
-        originalVideoId: videoId,
-        recommendedCount: relatedVideos.length,
-        searchQuery
-      });
 
       return relatedVideos;
 
