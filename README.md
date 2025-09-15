@@ -39,7 +39,6 @@ The system orchestrates multiple AI services through a modular architecture, com
 
 #### 1. Video Ingestion Flow 
 ![Ingestion Flow Part 1](./diagrams/diagram-ingestion-1.png)
-![Ingestion Flow Part 2](./diagrams/diagram-ingestion-2.png)
 
 The ingestion pipeline implements a dual-path architecture for acquiring content:
 
@@ -53,6 +52,8 @@ The ingestion pipeline implements a dual-path architecture for acquiring content
 - **Retrieve Videos** uses these tags to query the **YouTube API** `search` endpoint
 - Returns videos matching the contextual tags
 
+
+![Ingestion Flow Part 2](./diagrams/diagram-ingestion-2.png)
 **Path 2: User Likes** (Preference-Based Expansion):
 - **User Input** provides previously liked video IDs from their interaction history
 - **Liked Videos** feed directly to **Retrieve Videos** component
@@ -141,7 +142,7 @@ The meme generation pipeline creates contextually appropriate humor by combining
        - Creates workplace-appropriate humor
      - **ImgFlip API** handles image rendering:
        - Receives template ID and generated text
-       - Generates 500x500px JPEG image
+       - Generates JPEG image
    - **Final Meme** that can be downloaded
 
 ##  Features
@@ -171,7 +172,7 @@ The system chains multiple operations in automated workflows:
 
 #### 5. **AI-Generated Contextual Memes**
 - Analyzes user state and video context
-- Searches 100+ meme templates using vector similarity
+- Searches 100 meme templates using vector similarity
 - GPT-4 generates personalized text for each meme box
 - Creates shareable memes via ImgFlip API
 
@@ -310,9 +311,16 @@ WorkVibe directly addresses social needs in our modern workplace:
 
 ##  Demo Video
 
-**[Watch the demo video, it's fun, trust me](https://www.youtube.com/watch?v=wuuxy-WGb8E)**
+**[Watch the demo video, it's fun, trust me](https://www.youtube.com/watch?v=8tDVI4wHtfQ)**
 
 The demo showcases:
 - All 5 workflows explained & in action
 - A complete usage of the application from Microsoft Auth to Meme Generation
 - Some funny skits to underline the issues my project is solving
+
+## License
+
+This project is licensed under the MIT License, see the [LICENSE](LICENSE) file for details.
+
+### Open Source
+WorkVibe is open source software, encouraging collaboration and innovation in workplace wellness technology.

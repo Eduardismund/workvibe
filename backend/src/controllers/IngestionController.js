@@ -50,7 +50,6 @@ class IngestionController {
 
   getContentStats = asyncHandler(async (req, res) => {
 
-    // Get videos count
     const conn = getConnection();
     const videosResult = await conn.execute(
       'SELECT COUNT(*) as total FROM youtube_videos'

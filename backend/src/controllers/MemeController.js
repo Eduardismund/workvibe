@@ -35,7 +35,7 @@ class MemeController {
   async createMemeFromUserData(req, res) {
     try {
       const { description, video_id } = req.body;
-      const selfie = req.file; // uploaded image file
+      const selfie = req.file;
       
       if (!selfie) {
         return res.status(400).json({
