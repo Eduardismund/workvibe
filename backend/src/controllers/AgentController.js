@@ -4,8 +4,6 @@ import logger from '../utils/logger.js';
 
 class AgentController {
 
-
-  // Ingestion workflow - Analyze and store videos
   ingestVideos = asyncHandler(async (req, res) => {
     if (!req.file) {
       return res.status(400).json({
@@ -118,7 +116,6 @@ class AgentController {
     }
   });
 
-  // Ingest videos based on liked videos only
   ingestLikedVideos = asyncHandler(async (req, res) => {
     const { likedVideoIds } = req.body;
     
@@ -139,7 +136,6 @@ class AgentController {
         hasUserToken: !!userToken
       });
       
-      // Execute ingestion based on liked videos
       const result = await AgentOrchestrator.executeLikedVideosIngestion({
         likedVideoIds,
         userEmail,
